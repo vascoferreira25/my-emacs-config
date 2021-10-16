@@ -1,0 +1,12 @@
+# -*- mode: snippet -*-
+# name: Function
+# key: Function
+# --
+'******************************************************************************
+'Description: ${1:description}
+'Arguments: ${2:arguments}
+'Returns: ${3:return}
+'******************************************************************************
+Function ${4:FunctionName}(${5:typeArgName} As ${6:Type}) ${7:As Type}:
+         ${8:'TODO: function code}
+End Function

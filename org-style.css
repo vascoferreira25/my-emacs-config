@@ -1,0 +1,53 @@
+body {
+    font-size: 18px;
+}
+
+h1 {margin-top: 56px; border-bottom: solid 2px #4F4F4F;}
+h2 {margin-top: 42px; border-bottom: solid 1px #4F4F4F;}
+h3 {margin-top: 36px;}
+h4 {margin-top: 28px;}
+h5 {margin-top: 22px;}
+h6 {margin-top: 18px;}
+
+#content {
+    margin-left: 20%;
+    margin-right: 20%;
+}
+
+#postamble {
+    text-align: center;
+    margin-top: 100px;
+}
+
+img {
+    max-width: 100%;
+}
+
+.figure {
+    text-align: center;
+    margin: 5px;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+code {
+    border-radius: 5px;
+    background-color: #E5E7EB;
+    padding-left: 5px;
+    padding-right: 5px;
+    color: #4FB981;
+}
+
+.org-src-container {
+    margin: 25px;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #1E1E1E;
+    color: #D4D4D4;
+    overflow: auto;
+}
+
+.org-src-container > pre {
+    padding: 10px;
+    margin: auto;
+}

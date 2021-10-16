@@ -1,0 +1,58 @@
+# -*- mode: snippet -*-
+# name: vue component template
+# key: vue-component-template
+# --
+<template>
+    <div>
+        <h3>{{ compName }}</h3>
+        <p>This is the component's text</p>
+        <input v-model.number="numberX" type="number">
+        <input v-model.number="numberY" type="number">
+        <p>This is the result <strong>{{ total }}</strong></p>
+    </div>
+</template>
+
+<script>
+// Get values
+// Do something to those values
+// import { mapGetters, mapActions } from 'vuex';
+// import ShoppingItem from './ShoppingItem.vue';
+
+export default {
+    name: "ExampleComponent",
+    data() {
+        return {
+            compName: 'Example Component Name',
+            numberX: 0,
+            numberY: 0
+        }
+    },
+    // Functions to use in the component
+    methods: {
+        // Function in ./store/modules/todos.js to fetch data from the API into the state.
+        // ...mapActions([])
+        sumFunc: function (x, y) {
+            return x + y
+        }
+    },
+    // Execute this when the component is created
+    created() {
+    },
+    // A computed property will only re-evaluate when some of its reactive dependencies have changed.
+    computed: {
+        // Get the data from state
+        // ...mapGetters([]),
+        total: function () {
+            return this.sumFunc(this.numberX, this.numberY)
+        }
+    },
+    components: {
+        // ShoppingItem
+    },
+    watch: {
+    }
+}
+</script>
+
+<style>
+</style>

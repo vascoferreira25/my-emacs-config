@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: Debug.Log
+# key: debug
+# --
+Debug.Log("Value of variable: " + ${1:variable});$0

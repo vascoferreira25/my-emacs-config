@@ -1,0 +1,17 @@
+# -*- mode: snippet -*-
+# contributor : Alejandro Espinoza Esparza <aespinoza@structum.com.mx>
+# name: property ... ... { ... }
+# key: prop
+# --
+/// <summary>
+/// Description of the property
+/// </summary>
+${1:public} ${2:float} ${3:VariableName}
+{
+    get {
+        return ${4:_variableName};
+    }
+    set {
+        $4 = $3;
+    }
+}

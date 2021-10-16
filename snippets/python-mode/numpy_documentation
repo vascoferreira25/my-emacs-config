@@ -1,0 +1,26 @@
+# -*- mode: snippet -*-
+# name: numpy_documentation
+# key: <ndoc
+# group: personal
+# --
+"""
+${1:Summary}
+
+Parameters
+----------
+param : type
+    description
+
+Returns
+-------
+param : type
+    description
+
+Examples
+--------
+>>> var = func(param)
+
+Todo
+----
+Do all of this
+"""$0

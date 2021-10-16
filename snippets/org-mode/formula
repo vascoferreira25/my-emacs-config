@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: formula
+# key: <formula
+# --
+$$\begin{aligned} \\
+& ${1:formula} \Leftrightarrow \\
+& \Leftrightarrow ${2:formula} \\
+\end{aligned}$$
+

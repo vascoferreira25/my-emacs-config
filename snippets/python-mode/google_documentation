@@ -1,0 +1,23 @@
+# -*- mode: snippet -*-
+# name: google_documentation
+# key: <gdoc
+# group: personal
+# --
+"""${1:Summary}
+    
+Description
+
+Args:
+    param1 (type): param1 description.
+
+Returns:
+    tupple(str, str): ret1 description, ret2 destription.
+
+Examples:
+    ```python
+    print("Hello, World!")
+    ```
+
+!!! todo
+    Write documentation!
+"""$0

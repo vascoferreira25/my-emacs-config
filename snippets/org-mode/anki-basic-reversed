@@ -1,0 +1,14 @@
+# -*- mode: snippet -*-
+# name: anki-basic-reversed
+# key: <anki-basic-reversed
+# group: anki
+# --
+** Item
+:PROPERTIES:
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:END:
+*** Front
+(it's) raining cats and dogs
+
+*** Back
+it's raining very hard

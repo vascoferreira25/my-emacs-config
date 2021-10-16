@@ -1,0 +1,23 @@
+# -*- mode: snippet -*-
+# name: equation-description
+# key: equation
+# --
+
+
+% \begin{figure}[H]
+\begin{equation}
+\phi(x)= \max (0, x)
+\label{eq:relu}
+\end{equation}
+\myequations{Função de ativação mais comum para redes neuronais -
+\gls{acr:relu} - \cite{37}}
+% \end{figure}
+
+% \begin{figure}[H]
+Onde:
+\begin{conditions*}
+\phi(x) & = & \gls{acr:relu} \\
+\max & = & valor mais alto de $x$ \\
+x & = & \gls{acr:input} \\
+\end{conditions*}
+% \end{figure}

@@ -1,0 +1,3438 @@
+#+title: Emacs Settings
+
+My emacs config. As I use Chemacs, the folder for this config is
+~~/.emacs.d.personal~.
+
+If some error occurs, try to recompile all the files with
+
+#+begin_src emacs-lisp
+;; -*- lexical-binding: t; -*-
+;; (byte-recompile-directory package-user-dir nil 'force)
+#+end_src
+
+Or try to update the packages.
+
+* Startup Settings
+** Default User
+
+#+BEGIN_SRC emacs-lisp
+(setq user-full-name "Vasco Ferreira")
+#+END_SRC
+
+** Window
+
+#+BEGIN_SRC emacs-lisp
+;; Disable UI menus
+(scroll-bar-mode -1)
+(tool-bar-mode -1)
+(tooltip-mode -1)
+(menu-bar-mode -1)
+(set-language-environment "UTF-8")
+
+;; Disable sound warnings
+(setq ring-bell-function 'ignore)
+
+;; Fancy titlebar for MacOS
+(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+(add-to-list 'default-frame-alist '(ns-appearance . dark))
+(setq ns-use-proxy-icon  nil)
+(setq frame-title-format "%b @ Emacs")
+#+END_SRC
+
+** Autosaving
+
+#+BEGIN_SRC emacs-lisp
+;; Autosave files directory
+(setq backup-directory-alist `(("." . ,(concat user-emacs-directory "backups/")))
+      backup-by-copying t    ; Don't delink hardlinks
+      version-control t      ; Use version numbers on backups
+      delete-old-versions t  ; Automatically delete excess backups
+      kept-new-versions 6    ; how many of the newest versions to keep
+      kept-old-versions 5    ; and how many of the old
+      )
+
+(setq auto-save-file-name-transforms
+      `((".*" ,(concat user-emacs-directory "auto-saves/") t)))
+
+(setq auto-save-default t
+      make-backup-files t
+      auto-save-timeout 10
+      auto-save-interval 200)
+
+;; Save session
+;; (desktop-save-mode 0)
+#+END_SRC
+
+** Environment Variables
+
+#+BEGIN_SRC emacs-lisp
+(setenv "PATH"
+        (concat
+         "C:/Users/Crow/.poetry/bin;"
+         "C:/WPy64-3940/scripts;"
+         "C:/Program Files/gnuplot/bin;"
+         "C:/Program Files (x86)/GnuWin32/bin;"
+         "C:/Users/Crow/.platformio/penv/Scripts;"
+         "C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino;"
+         "C:/Program Files/CMake/bin;"
+         (getenv "PATH")))
+#+END_SRC
+
+** Org-Protocol
+
+Start a daemon to make it faster and easier to open files and also
+to make org-protocol work.
+
+#+BEGIN_SRC emacs-lisp
+(server-start)
+(require 'org-protocol)
+
+;; Custom protocols
+(defun my-open-file-protocol-handler (data)
+  (let* ((file-link (plist-get data :file))
+         (file-path (replace-regexp-in-string "^\\(.*?\\)\\(#.*\\)?\\(::.*\\)?" "\\1" file-link)))
+    (find-file file-path))
+  ;; it must end in nil or it will create a buffer 
+  nil)
+
+(setq org-protocol-protocol-alist
+      '(("open-file"
+         :protocol "open-file"
+         :function my-open-file-protocol-handler)))
+#+END_SRC
+
+Define a new link type for protocols and the export method:
+
+#+BEGIN_SRC emacs-lisp
+(require 'ol)
+
+(org-link-set-parameters "org-protocol"
+                         :follow #'my-org-protocol-open
+                         :export #'my-org-protocol-export)
+
+(defun my-org-protocol-open (path _)
+  "Visit the org-protocol on PATH.
+PATH should be a topic that can be thrown at the man command."
+  (find-file (replace-regexp-in-string "//open-file\\?file=\\(.*\\)" "\\1" path)))
+
+(defun my-org-protocol-get-file-name ()
+  "Extract the file name from the buffer name."
+  (buffer-file-name))
+
+(defun my-org-protocol-export (link description format _)
+  "Export a man page link from Org files."
+  (let ((path (format "org-protocol:%s" link))
+        (desc (or description link)))
+    (pcase format
+      (`html (format "<a href=\"%s\">%s</a>" path desc))
+      (`latex (format "\\href{%s}{%s}" path desc))
+      (`texinfo (format "@uref{%s,%s}" path desc))
+      (`ascii (format "%s (%s)" desc path))
+      (t path))))
+#+END_SRC
+
+Export links to files with a link to open those files in Emacs through the
+protocol:
+
+#+BEGIN_SRC emacs-lisp
+(defun my-open-in-emacs-link (backend)
+  "Add a link to use org-protocol to open a file in emacs."
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward "\\(\\[\\[file:/*\\(.*?\n?.*?\\)\\]\\[.*?\n?.*?\\]\\]\\)" nil t)
+      (let* ((file-path (match-string-no-properties 2))
+             (fixed-file-path (format "%s.org"
+                                      (replace-regexp-in-string
+                                       "\\(.*?\\)\\(\\.org\\)?\\(\\.pdf\\)?\\(\\.html\\)?\\(::.*\\)?"
+                                       "\\1"
+                                       file-path))))
+        (replace-match
+         (format "%s ([[org-protocol://open-file?file=%s][open in Emacs]])"
+                 (match-string-no-properties 1)
+                 fixed-file-path))))))
+
+(add-hook 'org-export-before-parsing-hook 'my-open-in-emacs-link)
+#+END_SRC
+
+* Packages
+
+Use lockfiles to keep the correct versions installed. By using the command
+~straight-freeze-versions~ a lockfile is generated. Load the lockfile by using
+the command ~straight-thaw-versions~.
+
+** Themes
+
+To avoid symbols or glyphs not showing properly, install the ~all-the-icons~
+package:
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'all-the-icons)
+#+END_SRC
+
+And then run:
+
+#+BEGIN_SRC elisp
+;; all-the-icons-install-fonts
+#+END_SRC
+
+Just because, go to the folder where you downloaded it (the parent of the emacs
+folder) and install it to all users by right clicking and selecting install.
+
+*** Unicode fonts and ligatures
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'unicode-fonts)
+(unicode-fonts-setup)
+#+END_SRC
+
+*** Gruvbox
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'gruvbox-theme)
+#+END_SRC
+
+*** Monokai
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'monokai-theme)
+#+END_SRC
+
+*** Solarized
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'solarized-theme)
+#+END_SRC
+
+*** Custom themes
+
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'custom-theme-load-path "~/.emacs.d.personal/themes/")
+#+END_SRC
+
+*** Load theme
+
+#+BEGIN_SRC emacs-lisp
+;; Custom themes:
+;; - vs-dark
+;; - vs-dark-alternative
+(load-theme 'vs-dark t)
+;; (load-theme 'vs-dark-alternative t)
+#+END_SRC
+
+** Org-mode
+
+Org-mode should be the first package to be installed as many other packages
+might require it and also because it is built-in with emacs.
+
+Might need to install Mingw-w64 to rebuild the sqlite database.
+
+Download the ~mingw~ installer from [[http://mingw-w64.org/doku.php/download/win-builds][mingw-w64]]
+and install to ~C:\mingw~. Add the folder ~C:\mingw\bin~ to the ~PATH~.
+
+Don't forget to install ~pip install Pygments~ to enable source-code
+highlighting when exporting to latex/pdf. Also, register the python
+distribution.
+
+Also add this path to the Environment Variables:
+
+#+BEGIN_SRC 
+C:\WPy64-3940\python-3.9.4.amd64\Scripts
+#+END_SRC
+
+
+#+BEGIN_SRC emacs-lisp
+;; Org-mode
+(straight-use-package '(org :type built-in :includes (ox-html ox-latex)))
+
+(straight-use-package
+ '(org-bullets :type git :host github :repo "sabof/org-bullets"))
+(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+
+;; Bibliography References inside roam notes
+(straight-use-package 'org-ref)
+
+;; ox-tailwind export backend
+(straight-use-package
+ '(ox-tailwind :type git :host github :repo "vascoferreira25/ox-tailwind"))
+
+;; Pandoc export backend
+(straight-use-package
+ '(ox-pandoc :type git :host github :repo "kawabata/ox-pandoc"))
+
+;; Calendar view
+(straight-use-package
+ '(emacs-calfw :type git :host github :repo "kiwanami/emacs-calfw"))
+
+;; Enable calfw
+(require 'calfw-org)
+(setq cfw:org-agenda-schedule-args nil)
+
+;; Gnuplot
+(straight-use-package '(gnuplot :type git :host github :repo "emacsorphanage/gnuplot"))
+#+END_SRC
+
+*** Org-roam
+
+#+BEGIN_SRC emacs-lisp
+;; Roam Research alternative - linked notes
+(straight-use-package
+ '(org-roam :type git :host github :repo "org-roam/org-roam"))
+
+;; Check that I'm using v2
+(setq org-roam-v2-ack t)
+
+;; Enable completions everywhere
+(setq org-roam-completion-everywhere t)
+
+;; Interactive network graph of the roam notes
+(use-package websocket
+  :after org-roam
+  :straight (:host github :repo "ahyatt/emacs-websocket" :branch "main" :files ("*.el" "out")))
+
+(straight-use-package
+ '(emacs-web-server :type git :host github :repo "skeeto/emacs-web-server"))
+
+(use-package org-roam-ui
+  :straight
+    (:host github :repo "org-roam/org-roam-ui" :branch "main" :files ("*.el" "out"))
+    :after org-roam
+;;  :hook
+;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
+;;         a hookable mode anymore, you're advised to pick something yourself
+;;         if you don't care about startup time, use
+;;  :hook (after-init . org-roam-ui-mode)
+    :config
+    (setq org-roam-ui-sync-theme t
+          org-roam-ui-follow t
+          org-roam-ui-update-on-save t
+          org-roam-ui-open-on-start t))
+
+(require 'org-roam)
+;; Add projects todos to the agenda view
+;; The buffer you put this code in must have lexical-binding set to t!
+;; See the final configuration at the end for more details.
+(defun my-org-roam-filter-by-tag (tag-name)
+  (lambda (node)
+    (member tag-name (org-roam-node-tags node))))
+
+(defun my-org-roam-list-notes-by-tag (tag-name)
+  (mapcar #'org-roam-node-file
+          (seq-filter
+           (my-org-roam-filter-by-tag tag-name)
+           (org-roam-node-list))))
+
+(defun my-org-roam-refresh-agenda-list ()
+  (interactive)
+  (setq org-agenda-files (my-org-roam-list-notes-by-tag "Project")))
+
+;; Build the agenda list the first time for the session
+(my-org-roam-refresh-agenda-list)
+#+END_SRC
+
+*** Org-Kanban
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package
+ '(org-kanban :type git :host github :repo "gizmomogwai/org-kanban"))
+#+END_SRC
+
+*** Anki
+
+Install ~AnkiConnect~ by going to ~Tools/Add-ons/Get Add-ons~ and insert the
+~2055492159~ into the ~Code~ textbox. Click ok and then restart.
+
+You also need to get ~cUrl~ installed.
+
+For ~anki-editor-push-notes~ to work, you have to have Anki running.
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package
+ '(anki-editor :type git :host github :repo "louietan/anki-editor"))
+
+;; Export latex blocks to mathjax
+(setq anki-editor-use-math-jax t)
+
+;; Fix curl callback wrong arguments error
+;; Changed backend to be faster
+(defun anki-editor--anki-connect-invoke (action &optional params)
+  "Invoke AnkiConnect with ACTION and PARAMS."
+  (let ((request-body (json-encode (anki-editor--anki-connect-action action params 5)))
+        (request-backend 'url-retrieve)
+        (json-array-type 'list)
+        reply err)
+
+    (let ((response (request (format "http://%s:%s"
+                                     anki-editor-anki-connect-listening-address
+                                     anki-editor-anki-connect-listening-port)
+                      :type "POST"
+                      :parser 'json-read
+                      :data request-body
+                      :success (cl-function (lambda (&key data &allow-other-keys)
+                                              (setq reply data)))
+                      :error (cl-function (lambda (&key _ &key error-thrown &allow-other-keys)
+                                            (setq err (string-trim (cdr error-thrown)))))
+                      :sync t)))
+
+      ;; HACK: With sync set to t, `request' waits for curl process to
+      ;; exit, then response data becomes available, but callbacks
+      ;; might not be called right away but at a later time, that's
+      ;; why here we manually invoke callbacks to receive the result.
+      (unless (request-response-done-p response)
+        (request--curl-callback (get-buffer-process (request-response--buffer response)) "finished\n")))
+
+    (when err (error "Error communicating with AnkiConnect using cURL: %s" err))
+    (or reply (error "Got empty reply from AnkiConnect"))))
+
+;; Hack to fix the error that fixed-indent is not defined
+(defun yasnippet-snippets--fixed-indent () nil)
+
+;; Incremental Reading for org-mode and anki
+(straight-use-package
+ '(org-mode-incremental-reading
+   :type git :host github :repo "vascoferreira25/org-mode-incremental-reading"))
+
+(setq incremental-reading-default-deck "Org-Roam::Cards")
+#+END_SRC
+
+** Notifications
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package
+ '(alert-toast :type git :host github :repo "gkowzan/alert-toast"))
+#+END_SRC
+
+** HTTP Requests
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package
+ '(emacs-request :type git :host github :repo "tkf/emacs-request"))
+#+END_SRC
+
+** Emacs-lisp utilities
+
+#+BEGIN_SRC emacs-lisp
+;; Lisp utilities to make it easier to work with lists.
+;; map and reduce functions, get element first, second, third
+(straight-use-package
+ '(dash :type git :host github :repo "magnars/dash.el"))
+
+;; highlight dash functions
+(eval-after-load 'dash '(dash-enable-font-lock))
+
+;; String Manipulation
+(straight-use-package
+ '(s :type git :host github :repo "magnars/s.el"))
+
+;; File manipulation
+(straight-use-package
+ '(f :type git :host github :repo "rejeep/f.el"))
+
+;; Async stuff
+(straight-use-package 'async)
+
+;; Paste code within a code-block and link to file
+(straight-use-package
+ '(org-rich-yank :type git :host github :repo "unhammer/org-rich-yank"))
+
+;; Do not export the copied region into a src block
+(require 'org-rich-yank)
+(defun org-rich-yank ()
+  "Yank, surrounded by #+BEGIN_SRC block with major mode of originating buffer."
+  (interactive)
+  (if org-rich-yank--buffer
+      (let* ((source-mode (buffer-local-value 'major-mode org-rich-yank--buffer))
+             (paste
+              (concat
+               "\n"
+               (when (not (eq source-mode 'org-mode))
+                 (format "#+BEGIN_SRC %s\n"
+                         (replace-regexp-in-string "-mode$" "" (symbol-name source-mode))))
+               (org-rich-yank--trim-nl (current-kill 0))
+               (when (not (eq source-mode 'org-mode))
+                 (format "\n#+END_SRC"))
+               "\n\n"
+               (org-rich-yank--link))))
+        (insert
+         (if org-rich-yank-add-target-indent
+             (org-rich-yank-indent paste)
+           paste)))
+    (message "`org-rich-yank' doesn't know the source buffer – please `kill-ring-save' and try again.")))
+
+(with-eval-after-load 'evil
+  (define-key evil-normal-state-map (kbd "P") 'org-rich-yank))
+#+END_SRC
+
+** Plantuml
+
+Download the Plantuml jar file from the website and add it to the path.
+In this case, I added it to ~D:/programming/.path~.
+
+See the preview by running ~plantuml-preview~.
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package
+ '(plantuml-mode :type git :host github :repo "skuro/plantuml-mode"))
+
+(setq plantuml-jar-path "d:/programming/.path/plantuml.jar")
+(setq org-plantuml-jar-path "d:/programming/.path/plantuml.jar")
+(setq plantuml-default-exec-mode 'jar)
+
+;; Enable utf-8 encoding for portuguese text
+;; Only works when using an executable. Does not work with java
+;; Instead, use :java -chartset UTF-8 in the src block
+(setq org-plantuml-executable-args (list "-headless" "-chartset UTF-8"))
+
+;; Enable plantuml-mode for PlantUML files
+(add-to-list 'auto-mode-alist '("\\.plantuml\\'" . plantuml-mode))
+
+;; Integration with org-mode
+(add-to-list
+  'org-src-lang-modes '("plantuml" . plantuml))
+#+END_SRC
+
+** Evil
+
+#+BEGIN_SRC emacs-lisp
+;; This is optional since it's already set to t by default.
+(setq evil-want-integration t)
+(setq evil-want-keybinding nil)
+(setq evil-vsplit-window-right t)
+(setq evil-split-window-below t)
+
+;; Evil-mode -> emulate VIM key bindings and movement
+(straight-use-package 'evil)
+
+(with-eval-after-load 'evil
+  ;; Move between visual lines
+  (define-key evil-normal-state-map (kbd "j") 'evil-next-visual-line)
+  (define-key evil-normal-state-map (kbd "k") 'evil-previous-visual-line)
+  (evil-set-undo-system 'undo-tree)
+  
+  ;; Fix evil-mode conflict with dired hotkeys
+  (evil-set-initial-state 'image-dired-thumbnail-mode 'emacs))
+
+;; Load evil-mode
+(evil-mode 1)
+
+;; Keybindings for other modules such as magit
+(straight-use-package 'evil-collection)
+
+;; Start the evil-collection
+(evil-collection-init)
+
+;; Surround selection with parens etc
+(straight-use-package 'evil-surround)
+(global-evil-surround-mode 1)
+
+;; Evil nerd Commenter
+(straight-use-package 'evil-nerd-commenter)
+
+;; Evil Org
+(straight-use-package 'org-evil)
+#+END_SRC
+
+** Code folding
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'origami)
+(global-origami-mode 1)
+
+;; mapping works only in normal mode
+(with-eval-after-load 'evil-maps
+  (define-key evil-normal-state-map "za" 'origami-forward-toggle-node)
+  (define-key evil-normal-state-map "zR" 'origami-close-all-nodes)
+  (define-key evil-normal-state-map "zM" 'origami-open-all-nodes)
+  (define-key evil-normal-state-map "zr" 'origami-close-node-recursively)
+  (define-key evil-normal-state-map "zm" 'origami-open-node-recursively)
+  (define-key evil-normal-state-map "zo" 'origami-show-node)
+  (define-key evil-normal-state-map "zc" 'origami-close-node)
+  (define-key evil-normal-state-map "zj" 'origami-forward-fold)
+  (define-key evil-normal-state-map "zk" 'origami-previous-fold)
+  (define-key evil-visual-state-map "zf"
+    '(lambda ()
+       "create fold and add comment to it"
+       (interactive)
+       (setq start (region-beginning))
+       (setq end (region-end))
+       (deactivate-mark)
+       (and (< end start)
+            (setq start (prog1 end (setq end start))))
+       (goto-char start)
+       (beginning-of-line)
+       (indent-according-to-mode)
+       (if (equal major-mode 'emacs-lisp-mode)
+           (insert ";; ")
+         ;; (indent-according-to-mode)
+         (insert comment-start " "))
+
+       ;; (insert comment-start " ")
+       (setq start (point))
+       (insert "Folding" " {{{")
+       (newline-and-indent)
+       (goto-char end)
+       (end-of-line)
+       (and (not (bolp))
+            (eq 0 (forward-line))
+            (eobp)
+            (insert ?\n))
+       (indent-according-to-mode)
+       (if (equal major-mode 'emacs-lisp-mode)
+           (insert ";; }}}")
+
+         (if (equal comment-end "")
+             (insert comment-start " }}}")
+           (insert comment-end "}}}")))
+       (newline-and-indent)
+       (goto-char start))))
+#+END_SRC
+
+** Git
+
+#+BEGIN_SRC emacs-lisp
+;; Git integration - was replaced with evil-collection
+(straight-use-package 'magit)
+
+;; Git in the gutter
+(straight-use-package 'diff-hl)
+(global-diff-hl-mode)
+#+END_SRC
+
+** Helm
+
+#+BEGIN_SRC emacs-lisp
+;; Helm: menu on the bottom
+(straight-use-package 'helm)
+(setq helm-mode-fuzzy-match t)
+(setq helm-completion-in-region-fuzzy-match t)
+(setq helm-candidate-number-list 50)
+#+END_SRC
+
+** Highlight Todos
+
+#+BEGIN_SRC emacs-lisp
+;; Highlight todos
+(straight-use-package 'hl-todo)
+
+(global-hl-todo-mode)
+(setq hl-todo-keyword-faces
+        '(("TODO" .           "#FD636B")
+          ("FIXME" .          "#FD636B")
+          ("BUG" .            "#FD636B")
+          ("PROBLEM" .        "#FD636B")
+          ("DEBUG" .          "#FFB900")
+          ("NOTE" .           "#3AE8B0")
+          ("INFO" .           "#19AFD0")
+          ("IMPLEMENTATION" . "#19AFD0")
+          ("SOLUTION" .       "#6967CE")
+          ("FIXED" .          "#3AE8B0")))
+#+END_SRC
+
+** Mode-line
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'telephone-line)
+(setq telephone-line-subseparator-faces '())
+(setq telephone-line-height 26)
+(telephone-line-mode 1)
+#+END_SRC
+
+** Yasnippet
+
+#+BEGIN_SRC emacs-lisp
+;; Yasnippet
+(straight-use-package 'yasnippet)
+(yas-global-mode 1)
+
+;; Snippet menu
+(setq helm-yas-space-match-anu-greedy t)
+(straight-use-package 'helm-c-yasnippet)
+#+END_SRC
+
+** Programming Languages
+*** Company Mode
+
+#+BEGIN_SRC emacs-lisp
+;; Company-mode
+(straight-use-package
+  '(company-mode :type git :host github :repo "company-mode/company-mode"))
+
+;; Define keys to cycle and select the completion
+(with-eval-after-load 'company-active-map
+  (define-key company-active-map (kbd "<return>") 'company-complete-selection)
+  (define-key company-active-map (kbd "C-j") 'company-select-next)
+  (define-key company-active-map (kbd "C-k") 'company-select-previous))
+
+(setq company-idle-delay 0.1)
+(setq company-minimum-prefix-length 2)
+(setq completion-ignore-case t)
+(setq company-selection-wrap-around t)
+
+(add-hook 'after-init-hook 'global-company-mode)
+#+END_SRC
+
+*** LSP
+
+Don't forget to install all the lsp-servers you need. To install the servers you need to
+run ~lsp-install-server~ and then write the name of the server.
+
+Here are the names of some servers:
+- Clojure :: ~clojure-lsp~
+- Python :: ~pyright~
+- C# :: ~csharp~ - it uses the ~omnisharp~ server
+  - Also install ~.NET Framework 4.7.1 Development SDK~ for Unity
+- Rust :: ~rust-analyzer~
+
+To install ~pyright~ you need to install it through NPM:
+
+#+BEGIN_SRC powershell
+npm install -g pyright
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+;; LSP server
+(straight-use-package
+ '(lsp-mode :type git :host github :repo "emacs-lsp/lsp-mode"))
+
+;; LSP UI
+(straight-use-package
+ '(lsp-ui :type git :host github :repo "emacs-lsp/lsp-ui"))
+
+;; Enable snippets
+(require 'company)
+(add-to-list 'company-backends '(company-capf :with company-yasnippet))
+
+;; what to use when checking on-save. "check" is default, I prefer clippy
+(setq lsp-rust-analyzer-cargo-watch-command "clippy")
+(setq lsp-idle-delay 0.1)
+(add-hook 'lsp-mode-hook 'lsp-ui-mode)
+
+(setq lsp-ui-peek-always-show t)
+(setq lsp-ui-sideline-enable t)
+(setq lsp-ui-sideline-show-hover nil)
+(setq lsp-ui-sideline-show-code-actions nil)
+(setq lsp-ui-sideline-show-diagnostics t)
+(setq lsp-ui-doc-enable t)
+(setq lsp-ui-doc-position 'at-point)
+(setq lsp-ui-doc-max-width 60)
+(setq lsp-lens-enable t)
+(setq lsp-signature-auto-activate t)
+(setq lsp-signature-render-documentation t)
+
+;; Avoid loading lsp with every programming language
+;; for example, opening a elisp file gives error.
+;; (add-hook 'prog-mode-hook 'lsp)
+
+;; Syntax checking
+(straight-use-package 'flycheck)
+#+END_SRC
+
+Fix memory leak problem
+
+#+BEGIN_SRC emacs-lisp
+(defun my-lsp-client-clear-leak-handlers (lsp-client)
+  "Clear leaking handlers in LSP-CLIENT."
+  (let ((response-handlers (lsp--client-response-handlers lsp-client))
+        to-delete-keys)
+    (maphash (lambda (key value)
+               (when (> (time-convert (time-since (nth 3 value)) 'integer)
+                        (* 2 lsp-response-timeout))
+                 (push key to-delete-keys)))
+             response-handlers)
+    (when to-delete-keys
+      (message "Deleting %d handlers in %s lsp-client..."
+               (length to-delete-keys)
+               (lsp--client-server-id lsp-client))
+      (mapc (lambda (k) (remhash k response-handlers))
+            to-delete-keys))))
+
+(defun my-lsp-clear-leak ()
+  "Clear all leaks"
+  (maphash (lambda (_ client)
+             (my-lsp-client-clear-leak-handlers client))
+           lsp-clients))
+
+(setq my-lsp-clear-leak-timer
+      (run-with-timer 5 5 #'my-lsp-clear-leak))
+#+END_SRC
+
+*** Debugging
+
+#+BEGIN_SRC emacs-lisp
+;; Debugging
+(straight-use-package 'dap-mode)
+#+END_SRC
+
+*** AutoHotkey
+
+#+BEGIN_SRC emacs-lisp
+;; Autohotkey
+(straight-use-package 'ahk-mode)
+(add-to-list 'auto-mode-alist '("\\.ahk\\'" . ahk-mode))
+#+END_SRC
+
+*** C++
+
+#+BEGIN_SRC emacs-lisp
+;; C++
+(straight-use-package 'ccls)
+(add-hook 'c-mode '(lambda () (require 'ccls) (lsp)))
+(add-hook 'c++-mode '(lambda () (require 'ccls) (lsp)))
+(add-hook 'objc-mode '(lambda () (require 'ccls) (lsp)))
+(add-hook 'cuda-mode '(lambda () (require 'ccls) (lsp)))
+
+(setq ccls-executable "~/emacs.d/")
+#+END_SRC
+
+*** C#
+
+#+BEGIN_SRC emacs-lisp
+;; C#
+(straight-use-package 'omnisharp)
+(add-hook 'csharp-mode-hook #'lsp)
+#+END_SRC
+
+*** Clojure
+
+#+BEGIN_SRC emacs-lisp
+;; Clojure
+(straight-use-package 'cider)
+#+END_SRC
+
+*** Cobol
+
+#+BEGIN_SRC emacs-lisp
+;; Cobol
+(straight-use-package 'cobol-mode)
+(add-to-list 'auto-mode-alist '("\\.cob\\'" . cobol-mode))
+#+END_SRC
+
+*** Common Lisp
+
+#+BEGIN_SRC emacs-lisp
+;; Common Lisp
+(straight-use-package 'slime)
+(setq inferior-lisp-program "sbcl")
+#+END_SRC
+
+*** Javascript
+
+Install the Javascript Language Server with:
+
+#+BEGIN_SRC shell
+npm i -g javascript-typescript-langserver
+#+END_SRC
+
+Install the Vue.js Language Server with:
+
+#+BEGIN_SRC shell
+npm install -g vls
+#+END_SRC
+
+Install the VSCode HTML Language Server with:
+
+#+BEGIN_SRC shell
+npm install -g vscode-html-languageserver-bin
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+;; Web
+(straight-use-package 'web-mode)
+
+(with-eval-after-load 'web-mode
+  (setq web-mode-markup-indent-offset 2)
+  (setq web-mode-css-indent-offset 2)
+  (setq web-mode-code-indent-offset 2))
+
+;; Default javascript mode
+(setq js-indent-level 2)
+
+(require 'lsp)
+(setf (alist-get 'web-mode lsp--formatting-indent-alist) 'web-mode-code-indent-offset)
+
+;; Add `.vue' files to web-mode
+(add-to-list 'auto-mode-alist '("\\.jsx\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.vue\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . web-mode))
+
+(add-hook 'javascript-mode-hook #'lsp)
+(add-hook 'vue-mode-hook #'lsp)
+(add-hook 'web-mode-hook #'lsp)
+
+(defun my-web-mode-indent-new-comment-line ()
+  (interactive)
+  (goto-char (line-end-position))
+  (web-mode-comment-indent-new-line))
+
+(require 'web-mode)
+(evil-define-key 'insert web-mode-map (kbd "RET") 'web-mode-comment-indent-new-line)
+(evil-define-key 'normal web-mode-map (kbd "o") 'my-web-mode-indent-new-comment-line)
+#+END_SRC
+
+*** Lua
+
+#+BEGIN_SRC emacs-lisp
+;; Lua
+(straight-use-package 'lua-mode)
+#+END_SRC
+
+*** Markdown
+
+#+BEGIN_SRC emacs-lisp
+;; Markdown
+(straight-use-package 'markdown-mode)
+(straight-use-package 'markdown-toc)
+#+END_SRC
+
+*** Powershell
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'powershell)
+#+END_SRC
+
+*** Python
+
+#+BEGIN_SRC emacs-lisp
+;; VS Code python completions
+(straight-use-package 'lsp-pyright)
+
+(add-hook 'python-mode-hook '(lambda ()
+                               (require 'lsp-pyright)
+                               (lsp)))
+
+(setq-default lsp-pyright-extra-paths "C:/WPy64-3940/scripts")
+#+END_SRC
+
+*** Rust
+
+#+BEGIN_SRC emacs-lisp
+;; Rustic is a fork of `rust-mode' that extends it.
+(straight-use-package '(rustic :type git :host github :repo "brotzeit/rustic"))
+(add-hook 'rust-mode-hook #'lsp)
+
+(setq rustic-lsp-client 'lsp-mode)
+(setq rustic-lsp-server 'rust-analyzer)
+#+END_SRC
+
+The full config is this:
+
+#+BEGIN_SRC elisp
+;; (use-package rustic
+;;   :ensure
+;;   :bind (:map rustic-mode-map
+;;               ("M-j" . lsp-ui-imenu)
+;;               ("M-?" . lsp-find-references)
+;;               ("C-c C-c l" . flycheck-list-errors)
+;;               ("C-c C-c a" . lsp-execute-code-action)
+;;               ("C-c C-c r" . lsp-rename)
+;;               ("C-c C-c q" . lsp-workspace-restart)
+;;               ("C-c C-c Q" . lsp-workspace-shutdown)
+;;               ("C-c C-c s" . lsp-rust-analyzer-status))
+;;   :config
+;;   uncomment for less flashiness
+;;   (setq lsp-eldoc-hook nil)
+;;   (setq lsp-enable-symbol-highlighting nil)
+;;   (setq lsp-signature-auto-activate nil)
+;; 
+;;   comment to disable rustfmt on save
+;;   (setq rustic-format-on-save t)
+;;   (add-hook 'rustic-mode-hook 'rk/rustic-mode-hook))
+;; 
+;; (defun rk/rustic-mode-hook ()
+;;   so that run C-c C-c C-r works without having to confirm
+;;   (setq-local buffer-save-without-query t))
+#+END_SRC
+
+*** SQL
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'sql-indent)
+
+(straight-use-package
+ '(emacsql :type git :host github :repo "skeeto/emacsql"))
+#+END_SRC
+
+*** Toml
+
+#+BEGIN_SRC emacs-lisp
+;; Toml
+(straight-use-package 'toml-mode)
+#+END_SRC
+
+*** Typescript
+
+#+BEGIN_SRC emacs-lisp
+;; Typescript + React
+;; (straight-use-package
+;;  '(typescript.el :type git :host github :repo "emacs-typescript/typescript.el"))
+
+;; (setq typescript-indent-level 2)
+#+END_SRC
+
+*** VBA
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package '(vba-mode :type git :host github :repo "ayanyan/vba-mode"))
+#+END_SRC
+
+*** Embedded Programming
+
+#+BEGIN_SRC emacs-lisp
+;; Embedded programming
+(straight-use-package '(platformio-mode :type git :host github :repo "ZachMassia/PlatformIO-Mode"))
+
+;; Enable ccls for all c++ files, and platformio-mode only
+;; when needed (platformio.ini present in project root).
+;; (add-hook 'c++-mode-hook (lambda ()
+;;                            (lsp-deferred)
+;;                            (platformio-conditionally-enable)))
+#+END_SRC
+
+** Projectile
+
+#+BEGIN_SRC emacs-lisp
+;; Projectile
+(straight-use-package 'projectile)
+
+;; Helm Projectile
+(straight-use-package 'helm-projectile)
+#+END_SRC
+
+** Ripgrep
+
+#+BEGIN_SRC emacs-lisp
+;; Ripgrep tools
+(straight-use-package 'deadgrep)
+#+END_SRC
+
+** User Interface
+
+#+BEGIN_SRC emacs-lisp
+;; Center the buffer on the screen
+(straight-use-package 'olivetti)
+(setq-default olivetti-body-width 110)
+
+;; Highlight Indent Guides
+(straight-use-package 'highlight-indent-guides)
+
+(setq highlight-indent-guides-method 'character)
+(add-hook 'prog-mode-hook 'highlight-indent-guides-mode)
+
+;; Rainbow delimiters
+(straight-use-package 'rainbow-delimiters)
+(add-hook 'prog-mode-hook 'rainbow-delimiters-mode)
+
+;; Show hex colors
+(straight-use-package 'rainbow-mode)
+
+;; Show line numbers
+;; (global-display-line-numbers-mode nil)
+
+;; Fill column indicator
+(straight-use-package 'fill-column-indicator)
+
+;; Auto closing parens
+(straight-use-package 'smartparens)
+(add-hook 'prog-mode-hook 'smartparens-mode)
+(add-hook 'org-mode-hook 'smartparens-mode)
+
+;; Aggressive indentation
+(straight-use-package 'aggressive-indent)
+(global-aggressive-indent-mode 1)
+
+;; Fix not allowing whitespace when writing variable names
+(add-to-list
+ 'aggressive-indent-dont-indent-if
+ '(and (derived-mode-p 'csharp-mode)
+       (null (string-match "\\([;{}]\\|\\b\\(if\\|for\\|while\\)\\b\\)"
+                           (thing-at-point 'line)))))
+
+;; Typescript
+(setq web-mode-enable-comment-annotation t)
+
+(add-to-list
+ 'aggressive-indent-dont-indent-if
+ '(and (derived-mode-p 'web-mode)
+       (null (string-match "\\([;{}]\\|\\b\\(if\\|for\\|while\\)\\b\\)"
+                           (thing-at-point 'line)))))
+
+(add-to-list
+ 'aggressive-indent-dont-indent-if
+ '(and (derived-mode-p 'web-mode)
+       (null (string-match "\\(let\\|const\\|var\\)"
+                           (thing-at-point 'line)))))
+#+END_SRC
+
+** Undo-tree
+
+#+BEGIN_SRC emacs-lisp
+(straight-use-package 'undo-tree)
+(global-undo-tree-mode t)
+#+END_SRC
+
+** Dashboard
+
+#+BEGIN_SRC emacs-lisp
+;; Breaklines - required by dashboard
+;; (straight-use-package 'page-break-lines)
+
+;; Dashboard
+;; (straight-use-package
+;;  '(dashboard :type git :host github :repo "emacs-dashboard/emacs-dashboard"))
+
+;; (setq dashboard-set-heading-icons t)
+;; (setq dashboard-set-file-icons t)
+;; (dashboard-setup-startup-hook)
+#+END_SRC
+
+** Hledger
+
+#+BEGIN_SRC emacs-lisp
+;; Use ledger-mode instead as it won't insert random characters
+(straight-use-package '(ledger-mode :type git :host github :repo "ledger/ledger-mode"))
+(add-to-list 'auto-mode-alist '("\\.journal\\'" . ledger-mode))
+;;(setq ledger-binary-path "hledger")
+
+;; Set the ledger file to use
+(setenv "LEDGER_FILE" "D:/home/ledger/home_finance.journal")
+#+END_SRC
+
+** Utilities
+
+#+BEGIN_SRC emacs-lisp
+;; Write in caps
+(straight-use-package 'caps-lock)
+
+;; Completion styles
+;; (straight-use-package
+ ;; '(orderless :type git :host github :repo "oantolin/orderless"))
+
+;; (setq completion-styles '(orderless))
+#+END_SRC
+
+** Private Packages
+
+#+BEGIN_SRC emacs-lisp
+;; column-marker
+;; (load "~/.emacs.d.personal/private-packages/column-marker/column-marker.el")
+
+;; Profiler
+(load "~/.emacs.d.personal/private-packages/profile-dotemacs/profile-dotemacs.el")
+
+;; Visual-Basic mode
+(load "~/.emacs.d.personal/private-packages/visual-basic-mode/visual-basic-mode.el")
+#+END_SRC
+
+* Functions
+** Editing utilities
+
+#+BEGIN_SRC emacs-lisp
+(defun my-insert-line-above ()
+  "Insert an empty line above the current line."
+  (interactive)
+  (save-excursion
+    (end-of-line 0)
+    (open-line 1)))
+
+(defun my-insert-line-below ()
+  "Insert an empty line below the current line."
+  (interactive)
+  (save-excursion
+    (end-of-line 0)
+    (open-line 1)))
+
+(defun my-end-of-line-comment ()
+  "Go to the end of current line and create a new line with comment."
+  (interactive)
+  (end-of-line)
+  (indent-new-comment-line))
+
+(defun my-move-line-up ()
+  (interactive)
+  (transpose-lines 1)
+  (forward-line -2))
+
+(defun my-move-line-down ()
+  (interactive)
+  (forward-line 1)
+  (transpose-lines 1)
+  (forward-line -1))
+
+(defun my-save-macro (name)
+  "Save a macro. Take a name as argument and save the last
+       defined macro under this name at the end of the config file"
+  (interactive "sName of the macro:")
+  (let ((config-file "~/.emacs.d.personal/config.org"))
+    (find-file config-file)
+    (goto-char (point-min))
+    (search-forward-regexp "^** Macros$")
+    (forward-line 9)
+    (my-insert-line-above)
+    (forward-line -1)
+    (insert-kbd-macro name)
+    (save-buffer config-file)
+    (switch-to-buffer nil)))
+
+(defun my-remove-anki-cards-id ()
+  "Remove the ID attribute of all the cards in the buffer."
+  (interactive)
+  (goto-char (point-min))
+  (delete-matching-lines "^\\:ANKI_FAILURE_REASON\\:.*$")
+  (delete-matching-lines "^\\:ANKI_NOTE_ID\\:.*$")
+  (delete-matching-lines "^\\#\\+ATTR_ID:.*$"))
+
+(defun my-remove-all-anki-cards-id ()
+  (interactive)
+  (let* ((starting-buffer (buffer-file-name))
+         (files (directory-files org-roam-directory nil ".*_anki\\.org$")))
+    (dolist (f files)
+      (find-file f)
+      (my-remove-anki-cards-id)
+      (save-buffer)
+      (when (not (string= (buffer-file-name) starting-buffer))
+        (kill-buffer)))))
+
+(defun my-parse-all-cards ()
+  (interactive)
+  (let* ((starting-buffer (buffer-name (current-buffer)))
+         (files (directory-files org-roam-directory nil ".*_anki\\.org$")))
+    (dolist (f files)
+      (find-file f)
+      (anki-editor-mode)
+      (anki-editor-push-notes)
+      (anki-editor-push-notes)
+      (anki-editor-push-notes)
+      (save-buffer)
+      (when (not (string= (buffer-file-name) starting-buffer))
+        (kill-buffer)))))
+
+(defun my-org-rich-copy ()
+  "Copy region as HTML to paste in other places."
+  (interactive)
+  (kill-new
+   (org-export-string-as
+    (buffer-substring-no-properties (region-beginning) (region-end))
+    'html
+    t)))
+#+END_SRC
+
+** Org-mode utilities
+
+#+BEGIN_SRC emacs-lisp
+(defun publish-file-and-build-toc ()
+  "Force publish the current org-mode file."
+  (interactive)
+  (org-publish-current-file)
+  (org-tailwind-build-toc))
+
+(defun force-publish-file-and-build-toc ()
+  "Force publish the current org-mode file."
+  (interactive)
+  (org-publish-current-file t)
+  (org-tailwind-build-toc))
+
+(defun publish-all-and-build-toc ()
+  "Force publish all org-mode files."
+  (interactive)
+  (org-publish-all)
+  (org-tailwind-build-toc))
+
+(defun force-publish-all-and-build-toc ()
+  "Force publish all org-mode files."
+  (interactive)
+  (org-publish-all t)
+  (org-tailwind-build-toc))
+
+(defun async-org-publish-all ()
+  "Publish all projects async."
+  (interactive)
+  (org-publish-all nil t))
+
+(defun async-org-force-publish-all ()
+  "Force publish all projects async."
+  (interactive)
+  (org-publish-all t t))
+
+(defun publish-pandoc ()
+  "Search the entire directory for TEXT."
+  (interactive)
+  (w32-shell-execute "open" "pandoc"
+                     (format "-f org -t latex -o %s.pdf --pdf-engine=xelatex --variable=titlepage:true --variable=CJKmainfont --template=D:/orgmode/templates/eisvogel.latex --standalone %s"
+                             (file-name-sans-extension buffer-file-name)
+                             (buffer-file-name))))
+#+END_SRC
+
+** Search and replace utilities
+
+#+BEGIN_SRC emacs-lisp
+;; Integrate regexp builder and regex query and replace
+(defvar my-re-builder-positions nil
+  "Store point and region bounds before calling re-builder")
+
+(require 're-builder)
+(advice-add 're-builder
+            :before
+            (defun my-re-builder-save-state (&rest _)
+		      "Save into `my-re-builder-positions' the point
+  and region positions before calling `re-builder'."
+		      (setq my-re-builder-positions
+		            (cons (point)
+			              (when (region-active-p)
+			                (list (region-beginning)
+				                  (region-end)))))))
+
+(defun my-reb-replace-regexp (&optional delimited)
+  "Run `query-replace-regexp' with the contents of re-builder. With
+  non-nil optional argument DELIMITED, only replace matches
+  surrounded by word boundaries."
+  (interactive "P")
+  (reb-update-regexp)
+  (let* ((re (reb-target-binding reb-regexp))
+	     (replacement (query-replace-read-to
+			           re
+			           (concat "Query replace"
+				               (if current-prefix-arg
+				                   (if (eq current-prefix-arg '-) " backward" " word")
+				                 "")
+				               " regexp"
+				               (if (with-selected-window reb-target-window
+				                     (region-active-p)) " in region" ""))
+			           t))
+	     (pnt (car my-re-builder-positions))
+	     (beg (cadr my-re-builder-positions))
+	     (end (caddr my-re-builder-positions)))
+    (with-selected-window reb-target-window
+	  (goto-char (match-beginning 0)) ; replace with (goto-char (match-beginning 0)) if you want
+                                        ; to control where in the buffer the replacement starts
+                                        ; with re-builder
+	  (setq my-re-builder-positions nil)
+	  (reb-quit)
+	  (query-replace-regexp re replacement delimited beg end))))
+
+;; Additionally, I bind this new replace-regexp function (my-reb-replace-regexp)
+;; to RET in the re-builder buffer, and replace qrr entirely with just
+;; re-builder:
+(define-key reb-mode-map (kbd "RET") #'my-reb-replace-regexp)
+(define-key reb-lisp-mode-map (kbd "RET") #'my-reb-replace-regexp)
+
+(defun my-ripgrep-search (text)
+  "Search the entire directory for TEXT."
+  (interactive "sSearch-text: ")
+  (shell-command (format "rg --heading --line-number %s" text) "*ripgrep*" "*Messages*")
+  (switch-to-buffer-other-window "*ripgrep*"))
+
+(defun my-ripgrep-search-files (text)
+  "Search the entire directory for TEXT and output the files' path."
+  (interactive "sSearch-text: ")
+  (shell-command (format "rg %s --files-with-matches" text)
+                 "*ripgrep*" "*Messages*")
+  (switch-to-buffer-other-window "*ripgrep*"))
+
+(defun my-ripgrep-search-and-replace-files (search-text search-regex replace-with)
+  "Search the entire directory for TEXT and output the files' path."
+  (interactive "sSearch-text: \nsSearch-regex: \nsReplace-with: ")
+  (let ((current-directory (file-name-directory buffer-file-name)))
+    (shell-command (format "rg %s --files-with-matches" search-text)
+                   "*ripgrep*" "*Messages*")
+    (switch-to-buffer "*ripgrep*")
+    (goto-char (point-min))
+    (while (not (eobp))
+      (let* ((file-to-search (buffer-substring-no-properties
+                              (line-beginning-position)
+                              (line-end-position))))
+        (message "FILE: %s" file-to-search)
+        (my-regex-replace-in-file current-directory file-to-search
+                               search-regex replace-with)))))
+
+(defun my-regex-replace-in-file (current-directory file-to-search search-for replace-with)
+  "Replace regex in file, save it and kill the buffer."
+  (let* ((file-path (concat current-directory file-to-search)))
+    (find-file file-path)
+    (goto-char (point-min))
+    (while (re-search-forward search-for nil t)
+      (replace-match replace-with))
+    (save-buffer)
+    (kill-buffer)))
+
+;; Rebuilder helper functions
+(defun my-reb-query-replace (to-string)
+  "Replace current RE from point with `query-replace-regexp'."
+  (interactive
+   (progn (barf-if-buffer-read-only)
+          (list (query-replace-read-to (reb-target-binding reb-regexp)
+                                       "Query replace"  t))))
+  (with-current-buffer reb-target-buffer
+    (query-replace-regexp (reb-target-binding reb-regexp) to-string)))
+
+(defun my-reb-beginning-of-buffer ()
+  "In re-builder, move target buffer point position back to beginning."
+  (interactive)
+  (set-window-point (get-buffer-window reb-target-buffer)
+                    (with-current-buffer reb-target-buffer (point-min))))
+
+(defun my-reb-end-of-buffer ()
+  "In re-builder, move target buffer point position back to beginning."
+  (interactive)
+  (set-window-point (get-buffer-window reb-target-buffer)
+                    (with-current-buffer reb-target-buffer (point-max))))
+#+END_SRC
+
+** Other utility functions
+
+#+BEGIN_SRC emacs-lisp
+;; (defun my-open-dashboard ()
+;;   "Open the dashboard buffer."
+;;   (switch-to-buffer "*dashboard*"))
+
+(defun my-open-settings-file ()
+  "Open private settings file."
+  (interactive)
+  (find-file "~/.emacs.d.personal/config.org"))
+
+(defun my-open-emacs-lisp-playground ()
+  "Open emacs-lisp-playground file."
+  (interactive)
+  (find-file "~/.emacs.d.personal/playground/playground.el"))
+
+(defun my-open-emacs-python-playground ()
+  "Open python-playground file."
+  (interactive)
+  (find-file "~/.emacs.d.personal/playground/playground.py"))
+
+(defun my-open-terminal-here ()
+  "Open windows terminal in current folder."
+  (interactive)
+  (let* ((cur-file (if (buffer-file-name) (buffer-file-name) "c:/"))
+         (project-dir (projectile-project-root))
+         (project-name (projectile-project-name)))
+    (if project-dir
+        ;; Open a new tab on the windows terminal if already open and rename
+        ;; the tab to the project name
+        (shell-command 
+         (format "wt -w 0 nt --startingDirectory \"%s\" --title \"%s\""
+                 project-dir
+                 project-name))
+      (shell-command "wt -w 0 nt"))
+    (message "Opening terminal")))
+
+(defun my-get-project-or-file-name ()
+  (interactive)
+  (if (projectile-project-name)
+      (projectile-project-name)
+    (file-name-nondirectory (buffer-file-name))))
+
+(defun my-browse-file-directory-or-project ()
+  "Open the current project directory or file directory with the
+windows explorer."
+  (interactive)
+  (if (projectile-project-root)
+      (w32-shell-execute "open" (projectile-project-root))
+    (w32-shell-execute "open" (file-name-directory (buffer-file-name)))))
+
+(defun my-browse-file-directory ()
+  "Open the current project directory or file directory with the
+windows explorer."
+  (interactive)
+  (w32-shell-execute "open" (file-name-directory (buffer-file-name))))
+
+(defun my-create-projectile-file ()
+  "Create a `.projectile' file in the current directory."
+  (interactive)
+  (write-region "" nil ".projectile"))
+
+(defun my-switch-to-last-buffer ()
+  (interactive)
+  (switch-to-buffer nil))
+
+(defun my-volatile-kill-buffer ()
+  "Kill current buffer without confirmation unless it was modified."
+  (interactive)
+  (let ((buffer-modified-p nil))
+    (kill-buffer (current-buffer))))
+
+(defun my-garbage-collect-stats ()
+  "Run `garbage-collect' and print stats about memory usage."
+  (interactive)
+  (message (cl-loop for (type size used free) in (garbage-collect)
+                    for used = (* used size)
+                    for free = (* (or free 0) size)
+                    for total = (file-size-human-readable (+ used free))
+                    for used = (file-size-human-readable used)
+                    for free = (file-size-human-readable free)
+                    concat (format "%s: %s + %s = %s\n" type used free total))))
+#+END_SRC
+
+** Emacs-lisp utilities
+
+#+BEGIN_SRC emacs-lisp
+(defun my-eval-last-sexp-comment ()
+  "Eval the last sexp to a comment and fill paragraph."
+  (interactive)
+  (let ((this-command  'eval-print-last-sexp))
+    (save-excursion (eval-last-sexp t)))
+  (when (looking-back ")") (insert " \n"))
+  (insert ";; => ")
+  (move-end-of-line 1)
+  (fill-paragraph))
+
+(defun my-parent-directory (directory)
+  "Return the parent directory of a directory or file"
+  (file-name-directory (directory-file-name directory)))
+#+END_SRC
+
+* SSH
+
+#+BEGIN_SRC emacs-lisp
+;; Default SSH Host
+(require 'tramp)
+(setq tramp-default-method "plink"
+      tramp-auto-save-directory (concat user-emacs-directory "tramp-auto-saves/")
+      tramp-default-user "sshpower-mysshserver"
+      tramp-default-host "s49.sshpower.net")
+#+END_SRC
+
+* Org-mode Settings
+** Default settings
+
+#+BEGIN_SRC emacs-lisp
+;; Preserve the indentation of code blocks, independent of
+;; the text alignment
+(setq org-src-preserve-indentation t)
+
+;; Ignore broken links
+(setq org-export-with-broken-links t)
+
+;; Follow links when pressing enter
+(setq org-return-follows-link t)
+(define-key org-mode-map (kbd "RET") 'org-open-at-point)
+
+;; Disable exporting async single files
+(setq org-export-in-background nil)
+
+;; Open org files unfolded
+(setq org-startup-folded 'overview)
+
+(setq org-image-actual-width '(600 600))
+(setq org-startup-with-inline-images t)
+(setq org-startup-with-latex-preview t)
+
+(setq org-bullets-bullet-list '("") ;; no bullets, needs org-bullets package
+      org-ellipsis " ... " ;; folding symbol
+      org-pretty-entities t
+      org-hide-emphasis-markers t
+      ;; show actually italicized text instead of /italicized text/
+      org-agenda-block-separator ""
+      org-fontify-whole-heading-line t
+      org-fontify-done-headline t
+      org-fontify-quote-and-verse-blocks t)
+
+;; Increase the scale of latex preview blocks
+(setq org-format-latex-options (plist-put org-format-latex-options :scale 1.0))
+
+;; Disable indentation
+(setq org-adapt-indentation nil)
+
+;; Indentation settings
+(setq org-startup-indented t)
+(setq org-indent-indentation-per-level 2)
+
+;; Org indent code blocks natively
+(setq org-src-tab-acts-natively t)
+
+;; Evaluate source code blocks
+(require 'ob-python)
+(require 'ob-org)
+
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((gnuplot . t)
+   (org . t)
+   (ledger . t)
+   (python . t)
+   (plantuml . t)
+   (emacs-lisp . t)))
+
+;; Don't ask for confirmation for these languages
+(defun my-org-confirm-babel-evaluate (lang body)
+  (not (or (s-equals? lang "plantuml")
+           (s-equals? lang "elisp")
+           (s-equals? lang "emacs-lisp"))))
+(setq org-confirm-babel-evaluate 'my-org-confirm-babel-evaluate)
+#+END_SRC
+
+** Zotero
+
+#+BEGIN_SRC emacs-lisp
+(defun my-org-follow-zotero (path description)
+  "Open zotero from zotero links in org-mode"
+  (start-process "zotero" nil "C:/Program Files (x86)/Zotero/zotero.exe"
+                 (concat "zotero:" path)))
+
+(defun my-org-export-zotero (link description format _)
+  "Export org links of form [[zotero:PATH][DESCRIPTION]] to html."
+  (let ((path (format "zotero:%s" link))
+        (desc (or description (format "zotero:%s" link))))
+    (pcase format
+      (`html (format "<a href=\"%s\">%s</a>" path desc))
+      (`latex (format "\\href{%s}{%s}" path desc))
+      (`texinfo (format "@uref{%s,%s}" path desc))
+      (`ascii (format "%s (%s)" desc path))
+      (_ path))))
+
+
+(org-link-set-parameters
+ "zotero"
+ :follow #'my-org-follow-zotero
+ :export #'my-org-export-zotero)
+#+END_SRC
+
+** Agenda
+
+#+BEGIN_SRC emacs-lisp
+(setq org-agenda-files (list
+                        "D:/orgmode/org_agenda.org"
+                        "D:/orgmode/org_capture_agenda.org"
+                        "D:/orgmode/org_capture_todos.org"))
+
+
+(setq org-icalendar-include-todo 'all)
+(setq org-icalendar-use-deadline '(event-if-todo todo-due))
+#+END_SRC
+
+** Capture
+
+#+BEGIN_SRC emacs-lisp
+;; For more options check Template Elements in the manual
+(setq org-default-notes-file "D:/orgmode/org_capture_notes.org")
+(setq org-capture-templates
+      '(("a" "Agenda"
+         entry (file+headline "D:/orgmode/org_capture_agenda.org" "Agenda")
+         "* TODO %^{SCHEDULE}\nSCHEDULED: %^t\n:PROPERTIES:\n:CREATED: %U\nFILE: %a\n:END:\n\n#+BEGIN_QUOTE\n%i\n
+         ,#+END_QUOTE")
+        ("c" "Clipboard"
+         entry (file+headline "D:/orgmode/org_capture_clipboard.org" "Scripts")
+         "* %f - SUBJECT\n:PROPERTIES:\n:CREATED: %U\nFILE: %a\n:END:\n\n#+BEGIN_SRC\n%x\n#+END_SRC")
+        ("l" "Logbook"
+         entry (file+olp+datetree "D:/orgmode/org_capture_logbook.org")
+         "* %U - %^{ACTIVITY}\n\n:PROPERTIES:\n:CREATED: %U\nUser: %n\n:END:\n\n#+BEGIN_QUOTE\n%i\n#+END_QUOTE")
+        ("n" "Notes"
+         entry (file+olp+datetree "D:/orgmode/org_capture_notes.org")
+         "* %^{SUBJECT}\n:PROPERTIES:\n:CREATED: %U\nFILE: %a\n:END:\n\n#+BEGIN_QUOTE\n%i\n#+END_QUOTE\n\n")
+        ("s" "Scripts"
+         entry (file+headline "D:/orgmode/org_capture_scripts.org" "Scripts")
+         "* %f - %^{SUBJECT}\n:PROPERTIES:\n:CREATED: %U\nFILE: %a\n:END:\n\n#+BEGIN_SRC\n%i\n#+END_SRC")
+        ("t" "Todos"
+         entry (file+headline "D:/orgmode/org_capture_todos.org" "Tasks")
+         "* TODO %^{TASK}\n:PROPERTIES:\n:CREATED: %U\nFILE: %a\n:END:\n\n#+BEGIN_QUOTE\n%i\n#+END_QUOTE")))
+#+END_SRC
+
+** Projects
+
+#+BEGIN_SRC emacs-lisp
+(setq org-publish-project-alist
+      '(("org-files"
+         :base-extension "org"
+         :base-directory "D:/orgmode/"
+         :publishing-directory "D:/orgmode/dist/"
+         :publishing-function org-tailwind-publish-to-html-without-toc)
+        ("images"
+         :base-directory "D:/orgmode/img/"
+         :base-extension ".*"
+         :publishing-directory "D:/orgmode/dist/img/"
+         :publishing-function org-publish-attachment)
+        ("files"
+         :base-directory "D:/orgmode/files/"
+         :base-extension ".*"
+         :publishing-directory "D:/orgmode/dist/files/"
+         :publishing-function org-publish-attachment)
+        ;; Publish all
+        ("notes" :components ("org-files" "images" "files"))))
+
+;; Org-ref
+;; Set up bibliography
+(setq reftex-default-bibliography '("D:/orgmode/bibliography.bib"))
+(setq org-ref-default-bibliography '("D:/orgmode/bibliography.bib"))
+(setq bibtex-completion-bibliography "D:/orgmode/bibliography.bib")
+(setq org-ref-bibliography-notes "D:/orgmode/bibliography_notes.org")
+#+END_SRC
+
+** Org Roam
+
+#+BEGIN_SRC emacs-lisp
+;; Recommendation for Windows users for performance
+(setq org-roam-db-update-method 'immediate)
+
+;; Set the org-roam directory
+(setq org-roam-directory "D:/orgmode")
+(setq org-roam-index-file "D:/orgmode/index.org")
+
+(setq org-roam-dailies-directory "D:/orgmode")
+
+(setq org-roam-dailies-capture-templates
+      '(("d" "default" entry
+         "* %<%H:%M:%S> - %?\n%T"
+         :target (file+head "%<%Y%m%d>_daily.org"
+                            "#+title: %<%A,%e %B %Y>
+,#+category: Daily
+,#+filetags: Daily %<%Y> %<%Y-%B>
+
+")
+         :unnarrowed t)))
+
+;; for org-roam-buffer-toggle
+(add-to-list 'display-buffer-alist
+             '(("\\*org-roam\\*"
+                (display-buffer-in-direction)
+                (direction . right)
+                (window-width . 0.25)
+                (window-height . fit-window-to-buffer))))
+
+;; Change org file links to pdf
+(defun my-replace-org-roam-links-with-filename (backend)
+  "Replace all links that point to an ORG file, to point to a PDF
+file."
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward "\\[\\[\\(id:.*?\\)\\]\\[" nil t)
+      (let* ((node-id (s-replace "id:" "" (match-string-no-properties 1)))
+             (node (org-roam-node-from-id node-id)))
+        (when node
+          (let* ((node-file (org-roam-node-file node)))
+            (cond ((s-equals? backend "latex")
+                   (replace-match
+                    (format "[[file:///%s]["
+                            (s-replace-regexp "\\.org" ".pdf" node-file))))
+                  (t
+                   (replace-match
+                    (format "[[file:///%s][" node-file))))))))))
+
+(add-hook 'org-export-before-processing-hook 'my-replace-org-roam-links-with-filename)
+
+;; Add backlinks to the export
+(defun my-collect-backlinks-string (backend)
+  "Insert backlinks into the end of the org file before parsing it."
+  (goto-char (point-max))
+  (when (org-roam-node-at-point)
+    (let* ((backlinks (org-roam-backlinks-get (org-roam-node-at-point))))
+      (when backlinks
+        ;; Add a new header for the references
+        ;; (insert "\n\n\\clearpage\n\n")
+        (insert "\n\n* Backlinks\n")
+        (dolist (backlink backlinks)
+          (let* ((source-node (org-roam-backlink-source-node backlink))
+                 (point (org-roam-backlink-point backlink))
+                 (text (s-replace "\n" " " (org-roam-preview-get-contents
+                                            (org-roam-node-file source-node)
+                                            point)))
+                 (references (format "[[file:///%s][%s]] [[org-protocol://open-file?file=%s][(open in Emacs)]] - %s\n\n"
+                                     (org-roam-node-file source-node)
+                                     (org-roam-node-title source-node)
+                                     (org-roam-node-file source-node)
+                                     text)))
+            (insert references)))))))
+
+(add-hook 'org-export-before-processing-hook 'my-collect-backlinks-string)
+
+(defun my-org-roam-anki-card-filename (node)
+  (let* ((file (file-name-nondirectory
+                (file-name-sans-extension
+                 (replace-regexp-in-string
+                  ".*org-roam-node \\(.*?\\)\\.org\\b.*"
+                  "\\1"
+                  node)))))
+    (format "%s" file)))
+
+
+(defun my-org-roam-anki-card-link (node-string)
+  (message "NODE: %s" node-string)
+  (let* ((node (org-roam-node-from-id
+                (replace-regexp-in-string
+                 ".*(ID \\. \\(.*?\\)) (BLOCKED.*"
+                 "\\1"
+                 node-string)))
+         (id (org-roam-node-id node))
+         (title (org-roam-node-title node)))
+    (format "[[id:%s][%s]]" id title)))
+
+
+(defun my-org-roam-anki-card-title (file)
+  (interactive)
+  (setq title "")
+  (let* ((org-elements (with-temp-buffer
+                         (find-file file)
+                         (goto-char 0)
+                         (org-element-parse-buffer))))
+    (org-element-map org-elements 'keyword
+      (lambda (element)
+        (when (string= (org-element-property :key element) "TITLE")
+          (setq title (org-element-property :value element))
+          )) nil t))
+  title)
+
+
+(defun my-org-roam-anki-card-id (file)
+  (interactive)
+  (let* ((properties (with-temp-buffer
+                       (find-file file)
+                         (goto-char 0)
+                       (org-entry-properties))))
+    (cdr (assoc "ID" properties))))
+
+
+(setq org-roam-capture-templates
+      '(("d" "default" plain "%?"
+         :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                            "#+title: ${title}
+,#+category: ${title}
+,#+filetags: Notes
+
+Related to: 
+
+,* Description
+
+")
+         :unnarrowed t)
+        ("p" "project" plain "%?"
+         :target (file+head "%<%Y%m%d%H%M%S>-project-${slug}.org"
+                            "#+title: Project ${title}
+,#+category: Project: ${title}
+,#+filetags: Project
+
+Related to: [[file:20210325091501-projects.org][Projects]]
+
+,* Description :ignore:
+,* Setup :ignore:
+,* Resources and other Materials :ignore:
+,* Development Process
+,* Tasks Table :ignore:
+
+,#+COLUMNS: \\\\\\%ITEM \\\\\\%TAGS %PRIORITY \\\\\\%TODO(STATUS) \\\\\\%CREATED \\\\\\%CLOCKSUM %SCHEDULED %DEADLINE %STARTED \\\\\\%CLOSED
+,#+BEGIN: columnview :hlines 2 :indent t :id global :exclude-tags (\"ignore\")
+,#+END:
+")
+         :unnarrowed t)
+        ("a" "anki-cards" plain "%?"
+         :target (file+head "%(my-org-roam-anki-card-filename \"${at-point}\")_anki.org"
+                            "#+title: Anki Cards for %(my-org-roam-anki-card-title \"%f\")
+,#+category: Anki
+,#+filetags: Anki-Cards
+
+Related to: [[id:%(my-org-roam-anki-card-id \"%f\")][%(my-org-roam-anki-card-title \"%f\")]]
+
+,* Articles
+:PROPERTIES:
+:ANKI_DECK: Org-Roam::Articles
+:ANKI_TAGS: org-roam-articles
+:END:
+,* Cards
+:PROPERTIES:
+:ANKI_DECK: Org-Roam::Cards
+:ANKI_TAGS: org-roam-cards
+:END:
+")
+         :unnarrowed t)))
+
+;; Fast note insertion
+(defun my-org-roam-node-insert-immediate (arg &rest args)
+  (interactive "P")
+  (let ((args (cons arg args))
+        (org-roam-capture-templates (list (append (car org-roam-capture-templates)
+                                                  '(:immediate-finish t)))))
+    (apply #'org-roam-node-insert args)))
+
+;; Start org-roam
+(require 'org-roam)
+(org-roam-setup)
+(add-hook 'after-init-hook 'org-roam-mode)
+#+END_SRC
+
+** Todos and tags
+
+#+BEGIN_SRC emacs-lisp
+;; Org todo faces
+(setq org-todo-keywords
+      '((sequence "TODO(t!)" "ONGOING(o!)" "|" "DONE(d!)")
+        (sequence "INITIATION(i!)" "PLANNING(p!)" "EXECUTION(e!)" "MANAGEMENT&CONTROL(m!)" "|" "CLOSURE(c!)")
+        (sequence "PROBLEM(b!)" "CAUSE(a!)" "SOLUTION(s!)" "IMPLEMENTATION(r!)" "|" "FIXED(f!)")
+        (sequence "|" "SUSPENDED(S!)" "CANCELED(C!)")))
+
+;; Define the priorities
+(setq org-priority-highest ?A)
+(setq org-priority-default ?C)
+(setq org-priority-lowest ?F)
+
+;; Log when the todo was marked as done
+(setq org-log-done 'time-stamp)
+
+;; Log state changes into the LOGBOOK drawer
+(setq org-log-state-notes-into-drawer t)
+
+;; Log the creation timestamp
+(defun my-log-todo-creation-timestamp (&rest ignore)
+  "Log TODO creation time in the property drawer under the key 'CREATED'."
+  (when (and (org-get-todo-state)
+             (not (org-entry-get nil "CREATED")))
+    (org-entry-put nil "CREATED" (format-time-string "[%Y-%m-%d %a %H:%M]"))))
+
+;; add to the org-capture hook
+(advice-add 'org-insert-todo-heading :after #'my-log-todo-creation-timestamp)
+(advice-add 'org-insert-todo-heading-respect-content :after #'my-log-todo-creation-timestamp)
+(advice-add 'org-insert-todo-subheading :after #'my-log-todo-creation-timestamp)
+(add-hook 'org-after-todo-state-change-hook #'my-log-todo-creation-timestamp)
+
+;; Track the started timestamp
+(defun my-log-todo-started-timestamp ()
+  "Log TODO starting time in the properties drawer under the key 'STARTED."
+  (interactive)
+  (when (and (org-get-todo-state)
+             (not (org-entry-get nil "STARTED")))
+    (org-entry-put nil "STARTED" (format-time-string "[%Y-%m-%d %a %H:%M]"))))
+
+;; Log the started timestamp and start a clock
+(defun my-log-todo-started-timestamp-clock ()
+  "Log the TODO starting timestamp and start a clock."
+  (interactive)
+  (my-log-todo-started-timestamp)
+  (org-clock-in))
+
+;; Setup colors for new org faces
+(setq org-todo-keyword-faces
+      '(("TODO" .               (:foreground "#FD636B" :weight bold))
+        ("ONGOING" .            (:foreground "#FFB900" :weight bold))
+        ("DONE" .               (:foreground "#3AE8B0" :weight bold))
+        ("INITIATION" .         (:foreground "#FD636B" :weight bold))
+        ("PLANNING" .           (:foreground "#FFB900" :weight bold))
+        ("EXECUTION" .          (:foreground "#6967CE" :weight bold))
+        ("MANAGEMENT&CONTROL" . (:foreground "#19AFD0" :weight bold))
+        ("CLOSURE" .            (:foreground "#3AE8B0" :weight bold))
+        ("PROBLEM" .            (:foreground "#FD636B" :weight bold))
+        ("CAUSE" .              (:foreground "#FFB900" :weight bold))
+        ("SOLUTION" .           (:foreground "#6967CE" :weight bold))
+        ("IMPLEMENTATION" .     (:foreground "#19AFD0" :weight bold))
+        ("FIXED" .              (:foreground "#3AE8B0" :weight bold))
+        ("SUSPENDED" .          (:foreground "white" :background "#6967CE" :weight bold))
+        ("CANCELED" .           (:foreground "white" :background "#FD636B" :weight bold))))
+
+;; TAGS
+(setq org-tag-alist '((:startgroup . nil)
+                      ("@Work" . ?W)
+                      ("@Home" . ?H)
+                      ("@School" . ?S)
+                      (:endgroup . nil)
+                      (:"Programming" . ?P)))
+#+END_SRC
+
+** Latex export settings
+
+#+BEGIN_SRC emacs-lisp
+(require 'ox-latex)
+
+(setq org-export-with-properties nil)
+(setq org-export-with-drawers nil)
+
+;; Export the file to another folder
+(defun org-export-output-file-name-modified (orig-fun extension &optional subtreep pub-dir)
+  (unless pub-dir
+    (setq pub-dir (concat org-roam-directory "/export"))
+    (unless (file-directory-p pub-dir)
+      (make-directory pub-dir)))
+  (apply orig-fun extension subtreep pub-dir nil))
+
+;; Make it run when exporting
+(advice-add 'org-export-output-file-name :around #'org-export-output-file-name-modified)
+
+;; Delete auxiliary files on export
+(setq org-latex-logfiles-extensions
+      (quote
+       ("lof" "lot" "tex~" "aux" "idx" "log" "out" "toc" "nav"
+        "snm" "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc"
+        "ps" "spl" "bbl" "tex" "out")))
+
+;; Add a bibliography when exporting
+(defun insert-bibliography (backend)
+  "Insert a bibliography for latex export documents."
+  (when (s-equals? backend "latex")
+    (goto-char (point-max))
+    (insert "\n\n\\bibliography{bibliography}\n")))
+
+(add-hook 'org-export-before-processing-hook 'insert-bibliography)
+
+;; Use lualatex to compile pdf
+(setq org-latex-pdf-process
+      '("lualatex.exe -interaction=nonstopmode -shell-escape -output-directory %o %f"
+        "bibtex %b"
+        "lualatex.exe -interaction=nonstopmode -shell-escape -output-directory %o %f")) 
+
+;; Add a blank page after the title page
+(setq latex-export-cover-page "
+\\thispagestyle{empty}
+\\begin{tikzpicture}[remember picture,overlay]
+	\\node[right, rotate=15] at (-3,-15)
+	{\\includegraphics[width=24cm,keepaspectratio]{./img/network_2.png}};
+	\\node [rectangle, fill=mygreen!60, postaction={path fading=north, fading angle=-45, fill=myblue}, anchor=north, minimum width=14cm, minimum height=8cm,rounded corners=5pt,
+	text width=11cm, text=white] at (6,2.3) 
+	{
+		\\fontsize{24}{30} \\selectfont \\bfseries \\textsc{\\thetitle}
+		
+		\\vspace{1.0cm}
+		
+		\\Large \\textsc{\\theauthor}
+		
+		\\Large \\textsc{vasco\\_mmf@hotmail.com}
+	};
+
+\\node[rectangle,right,fill=white,align=center,rotate=0,text=myblue, minimum width=12cm,
+	                                                                 minimum height=5cm, anchor=north] at (8,-22) {\\LARGE \\bfseries \\thedate};
+
+%%\\node[right,align=left,rotate=90,myblue] at (-0.5,-24.6) {\\LARGE \\bfseries aaaaaaa};
+
+\\end{tikzpicture}
+
+\\clearpage
+")
+
+;; Set the cover page for latex export
+(setq org-latex-title-command latex-export-cover-page)
+
+;; Set the toc links' color to black
+(setq org-latex-toc-command "{
+\\hypersetup{linkcolor=black}
+\\tableofcontents
+}\n\n\\clearpage\n\n")
+
+(setq org-latex-hyperref-template
+      "\\hypersetup{\n colorlinks,\n linktoc=,\n linkcolor=myblue,
+urlcolor=myblue,\n pdfauthor={%a},\n pdftitle={%t},\n pdfkeywords={%k},
+pdfsubject={%d},\n pdfcreator={%c}, \n pdflang={%L}}\n")
+
+;; Override original function
+(defun org-latex--text-markup (text markup info)
+  "Format TEXT depending on MARKUP text markup.
+INFO is a plist used as a communication channel.  See
+`org-latex-text-markup-alist' for details."
+  (let ((fmt (cdr (assq markup (plist-get info :latex-text-markup-alist)))))
+    (cl-case fmt
+      ;; No format string: Return raw text.
+      ((nil) text)
+      ;; Handle the `verb' special case: Find an appropriate separator
+      ;; and use "\\verb" command.
+      (verb
+       (let ((separator (org-latex--find-verb-separator text)))
+         (concat "\\verb"
+                 separator
+                 (replace-regexp-in-string "\n" " " text)
+                 separator)))
+      ;; Handle the `protectedtexttt' special case: Protect some
+      ;; special chars and use "\texttt{%s}" format string.
+      (protectedtexttt
+       (format "\\texttt{%s}"
+               (replace-regexp-in-string
+                "--\\|[\\{}$%&_#~^]"
+                (lambda (m)
+                  (cond ((equal m "--") "-{}-")
+                        ((equal m "\\") "\\textbackslash{}")
+                        ((equal m "~") "\\textasciitilde{}")
+                        ((equal m "^") "\\textasciicircum{}")
+                        (t (org-latex--protect-text m))))
+                text nil t)))
+
+      (protectedinlinecode
+       (format "\\inlinecode{%s}"
+               (replace-regexp-in-string
+                "--\\|[\\{}$%&_#~^]"
+                (lambda (m)
+                  (cond ((equal m "--") "-{}-")
+                        ((equal m "\\") "\\textbackslash{}")
+                        ((equal m "~") "\\textasciitilde{}")
+                        ((equal m "^") "\\textasciicircum{}")
+                        (t (org-latex--protect-text m))))
+                text nil t)))
+
+      (protectedinlineverbatim
+       (format "\\inlineverbatim{%s}"
+               (replace-regexp-in-string
+                "--\\|[\\{}$%&_#~^]"
+                (lambda (m)
+                  (cond ((equal m "--") "-{}-")
+                        ((equal m "\\") "\\textbackslash{}")
+                        ((equal m "~") "\\textasciitilde{}")
+                        ((equal m "^") "\\textasciicircum{}")
+                        (t (org-latex--protect-text m))))
+                text nil t)))
+      
+      ;; Else use format string.
+      (t (format fmt text)))))
+
+;; Change the environment of the inline code and verbatim
+(setq org-latex-text-markup-alist
+      '((bold . "\\textbf{%s}")
+        (code . protectedinlinecode)
+        (italic . "\\emph{%s}")
+        (strike-through . "\\sout{%s}")
+        (underline . "\\uline{%s}")
+        (verbatim . protectedinlineverbatim)))
+
+;; Change the code block environment
+(setq org-latex-listings t)
+(add-to-list 'org-latex-listings-options '("numbers" "left"))
+
+(add-to-list 'org-latex-listings-langs '(csharp "C"))
+(add-to-list 'org-latex-listings-langs '(plantuml "text"))
+(add-to-list 'org-latex-listings-langs '(mermaid "text"))
+(add-to-list 'org-latex-listings-langs '(org "text"))
+(add-to-list 'org-latex-listings-langs '(shell "text"))
+
+(defun my-replace-console-output (backend)
+  "Replace console-output `(out)' from code blocks."
+  (if (s-equals? backend "latex")
+      (progn
+        (goto-char (point-min))
+        (while (re-search-forward "^(out)\\(.*\\)$" nil t)
+          (replace-match (format "=> %s" (match-string-no-properties 1)))))))
+
+;; Run the function before parsing the org file
+(add-hook 'org-export-before-parsing-hook 'my-replace-console-output)
+
+;; Change default packages because I use other fonts
+(setq org-latex-default-packages-alist
+      '((""         "grffile"   t)
+        (""         "longtable" nil)
+        (""         "wrapfig"   nil)
+        (""         "rotating"  nil)
+        ("normalem" "ulem"      t)
+        (""         "textcomp"  t)
+        (""         "capt-of"   nil)))
+
+;; Change default image settings
+(setq org-latex-image-default-width ""
+      org-latex-image-default-option "keepaspectratio,max size={0.9\\textwidth}{0.9\\textheight}")
+
+;; Change the classes needed
+(add-to-list 'org-latex-classes
+             '("article"
+               "\\documentclass[11pt,a4paper,twoside]{article}
+
+% change margins
+\\usepackage{geometry}
+
+\\geometry{
+a4paper,
+%total={170mm,240mm},
+left=25mm,
+right=25mm,
+top=30mm,
+bottom=25mm
+}
+
+% Save the author, date and title after \\maketitle
+\\usepackage{titling}
+
+% Cover page requirements
+\\usepackage{tikz}
+\\usetikzlibrary{positioning,fadings,through}
+\\usetikzlibrary{shapes.geometric}
+\\usetikzlibrary{calc}
+\\usepackage{anyfontsize}
+
+% track todos
+% use it like this:
+% \\todo{Rewrite this answer \\ldots}
+%
+% show all todos:
+% \\listoftodos 
+\\usepackage{todonotes}
+
+% line spacing
+\\setlength{\\parindent}{0em}
+%\\setlength{\\parskip}{1em}
+\\renewcommand{\\baselinestretch}{1.2}
+
+% add color to text
+\\usepackage{xcolor}
+
+\\definecolor{mygreen}{HTML}{44BF39}
+\\definecolor{mygreenlight}{HTML}{F3FFF2}
+\\definecolor{mygreen2}{HTML}{29CC9B}
+\\definecolor{myorange}{HTML}{E68A50}
+\\definecolor{myred}{HTML}{f16969}
+\\definecolor{myredlight}{HTML}{FFF2F2}
+\\definecolor{myblue}{HTML}{4DACBF}
+\\definecolor{mybluelight}{HTML}{F2FDFF}
+\\definecolor{myblue2}{HTML}{40B6FF}
+\\definecolor{myyellow}{HTML}{FCD13B}
+\\definecolor{myyellowlight}{HTML}{FFFAE6}
+\\definecolor{bg}{HTML}{595959}
+\\definecolor{bglight}{HTML}{F0F0F0}
+\\definecolor{sectioncolor}{HTML}{02547B}
+\\definecolor{textcolor}{HTML}{242424}
+
+\\definecolor{comment}{HTML}{5D9A42}
+\\definecolor{identifier}{HTML}{4b474c}
+\\definecolor{keyword}{HTML}{3E9CCA}
+\\definecolor{linenumber}{HTML}{999999}
+\\definecolor{string}{HTML}{D47B55}
+
+\\usepackage{sectsty}
+
+% typography visual enhancement
+\\usepackage{microtype}
+
+% math formulas, symbols and theorems
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{amsthm}
+
+% importing images
+\\usepackage{graphicx}
+\\usepackage[clean,convert]{svg}
+\\setsvg{width=0.9\\textwidth,height=0.9\\textheight,clean}
+
+\\usepackage[export]{adjustbox}
+
+% better looking tables
+\\usepackage{booktabs}
+
+% formatting tabular material on a per-column basis
+\\usepackage{array}
+
+% multi column table cells
+\\usepackage{multicol}
+
+% Underlined and strike-through text
+\\usepackage[normalem]{ulem}
+
+% Usefull to create environment that are not supposed to be shown
+\\usepackage{comment}
+\\excludecomment{mermaid}
+\\excludecomment{ANKI}
+\\excludecomment{FIELD}
+
+% links and references
+\\usepackage{hyperref}
+
+% Change the fonts
+\\usepackage{fontspec}
+\\usepackage{luaotfload} % for lualatex
+
+% Support for other languages characters
+%\\usepackage[UTF8]{ctex} % chinese
+%\\usepackage{xeCJK}
+
+% Set fonts
+%\\setmainfont{Gabriola}
+\\setmainfont{Cambria}
+%\\setmainfont{Helvetica}
+\\setmonofont{Fira Code}
+
+% Change the headings
+\\usepackage{titlesec}
+
+\\colorlet{sectitlecolor}{sectioncolor}
+\\colorlet{sectitlecolor}{sectioncolor}
+
+%\\titleformat{\\section}
+%{\\normalfont\\fontsize{16}{18}\\bfseries}{\\thesection}{1em}{}
+
+\\titleformat{\\section}
+{\\normalfont\\fontsize{16}{0}\\mdseries\\color{sectitlecolor}}{}{0em}{}
+
+\\titleformat{\\subsection}
+{\\normalfont\\fontsize{13}{0}\\mdseries\\color{sectitlecolor}}{}{0em}{}
+
+\\titleformat{\\subsubsection}
+{\\normalfont\\fontsize{12}{0}\\mdseries\\color{sectitlecolor}}{}{0em}{}
+
+% syntax highlighting for programming code
+\\usepackage{listings}
+
+\\lstdefinestyle{mystyle}{
+backgroundcolor=\\color{bglight},
+commentstyle=\\color{comment},
+keywordstyle=\\color{keyword},
+identifierstyle=\\color{identifier},
+numberstyle=\\color{linenumber},
+stringstyle=\\color{string},
+basicstyle=\\ttfamily\\footnotesize,
+breakatwhitespace=false,         
+breaklines=true,                 
+captionpos=b,                    
+keepspaces=true,                 
+numbers=left,                    
+numbersep=5pt,                  
+showspaces=false,                
+showstringspaces=false,
+showtabs=false,                  
+tabsize=2,
+xleftmargin=14pt
+}
+
+\\lstset{style=mystyle}
+
+% Define languages
+\\lstalias{text}{}
+
+% Add a background color for inline code blocks
+\\usepackage{mdframed}
+\\usepackage{soul}
+
+\\newcommand{\\inlinecode}[1]{%
+	\\begingroup
+    {\\footnotesize
+	\\textcolor{mygreen2}{
+		\\sethlcolor{bglight}%
+		\\hl{\\texttt{#1}}
+	}%
+	\\endgroup
+    }
+}
+
+\\newcommand{\\inlineverbatim}[1]{%
+	\\begingroup
+	{\\footnotesize
+	\\textcolor{myred}{
+		\\sethlcolor{bglight}%
+		\\hl{\\texttt{#1}}
+	}%
+	\\endgroup
+    }
+}
+
+% Define the new environments for quote, details, tip, warning and danger blocks
+\\newenvironment{quotebox}[1][]{%
+\\begin{mdframed}[%
+		          backgroundcolor=bglight, topline=false, bottomline=false, rightline=false,
+		          linewidth=4pt, linecolor=bg, roundcorner=5pt,
+		          skipabove=0.7\\baselineskip, skipbelow=0.7\\baselineskip,
+		          splitbottomskip=2pt, splittopskip=4pt, #1]%
+}{\\end{mdframed}}
+
+% Change the quote environment to use the color box
+\\renewenvironment{quote}{
+\\begin{quotebox}
+}{\\end{quotebox}}
+
+\\newenvironment{details}[1][]{%
+\\begin{mdframed}[%
+		          backgroundcolor=mygreenlight, topline=false, bottomline=false, rightline=false,
+		          linewidth=4pt, linecolor=mygreen, roundcorner=5pt,
+		          frametitle={Details!},frametitlerule=false,frametitlefont=\\color{mygreen}\\textbf,
+		          skipabove=0.7\\baselineskip, skipbelow=0.7\\baselineskip,
+		          splitbottomskip=2pt, splittopskip=4pt, #1]%
+}{\\end{mdframed}}
+
+\\newenvironment{tip}[1][]{%
+\\begin{mdframed}[%
+		          backgroundcolor=mybluelight, topline=false, bottomline=false, rightline=false,
+		          linewidth=4pt, linecolor=myblue, roundcorner=5pt,
+		          frametitle={Tip!},frametitlerule=false,frametitlefont=\\color{myblue}\\textbf,
+		          skipabove=0.7\\baselineskip, skipbelow=0.7\\baselineskip,
+		          splitbottomskip=2pt, splittopskip=4pt, #1]%
+}{\\end{mdframed}}
+
+\\newenvironment{warning}[1][]{%
+\\begin{mdframed}[%
+		          backgroundcolor=myyellowlight, topline=false, bottomline=false, rightline=false,
+		          linewidth=4pt, linecolor=myyellow, roundcorner=5pt,
+		          frametitle={Warning!},frametitlerule=false,frametitlefont=\\color{myyellow}\\textbf,
+		          skipabove=0.7\\baselineskip, skipbelow=0.7\\baselineskip,
+		          splitbottomskip=2pt, splittopskip=4pt, #1]%
+}{\\end{mdframed}}
+
+\\newenvironment{danger}[1][]{%
+\\begin{mdframed}[%
+                  backgroundcolor=myredlight, topline=false, bottomline=false, rightline=false,
+                  linewidth=4pt, linecolor=myred, roundcorner=5pt,
+                  frametitle={Danger!},frametitlerule=false,frametitlefont=\\color{myred}\\textbf,
+                  skipabove=0.7\\baselineskip, skipbelow=0.7\\baselineskip,
+                  splitbottomskip=2pt, splittopskip=4pt, #1]%
+}{\\end{mdframed}}
+
+\\usepackage{grffile}
+\\usepackage{longtable}
+\\usepackage{wrapfig}
+\\usepackage{rotating}
+\\usepackage[normalem]{ulem}
+\\usepackage{textcomp}
+\\usepackage{capt-of}
+\\author{Vasco Ferreira}
+\\date{\\today}
+\\title{Org-mode Test File}
+\\hypersetup{
+colorlinks,
+linktoc=,
+linkcolor=myblue,
+urlcolor=myblue,
+pdfauthor={Vasco Ferreira},
+pdftitle={Org-mode Test File},
+pdfkeywords={},
+pdfsubject={},
+pdfcreator={Emacs 28.0.50 (Org mode 9.4.4)}, 
+pdflang={English}}
+\\usepackage{grffile}
+\\usepackage{longtable}
+\\usepackage{wrapfig}
+\\usepackage{rotating}
+\\usepackage[normalem]{ulem}
+\\usepackage{textcomp}
+\\usepackage{capt-of}
+\\author{Vasco Ferreira}
+\\date{\\today}
+\\title{Org-mode Test File}
+\\hypersetup{
+colorlinks,
+linktoc=,
+linkcolor=myblue2,
+urlcolor=myblue2,
+pdfauthor={Vasco Ferreira},
+pdftitle={Org-mode Test File},
+pdfkeywords={},
+pdfsubject={},
+pdfcreator={Emacs 28.0.50 (Org mode 9.4.4)}, 
+pdflang={English}}
+
+% Change page layout
+% rightmark - current section
+% leftmark - current chapter
+\\usepackage{fancyhdr}
+\\pagestyle{fancy}
+
+\\lhead{}
+\\rhead{}
+\\cfoot{}
+
+\\fancyhead[L]{\\leftmark}
+\\fancyhead[R]{\\rightmark}
+\\fancyfoot[RO,LE]{\\thepage}
+\\fancyfoot[LO,RE]{\\theauthor}
+
+\\renewcommand{\\headrulewidth}{0.5pt}
+\\renewcommand{\\footrulewidth}{0.5pt}
+"
+               ("\\section{%s}" . "\\section*{%s}")
+               ("\\subsection{%s}" . "\\subsection*{%s}")
+               ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+               ("\\paragraph{%s}" . "\\paragraph*{%s}")))
+#+END_SRC
+
+** HTML export settings
+
+#+BEGIN_SRC emacs-lisp
+(defun my-org-inline-css-hook (exporter)
+  "Insert custom inline css"
+  (when (eq exporter 'html)
+    (let* ((dir (ignore-errors (file-name-directory (buffer-file-name))))
+           (path (concat dir "style.css"))
+           (homestyle (or (null dir) (null (file-exists-p path))))
+           (final (if homestyle "~/.emacs.d.personal/org-style.css" path))) ;; <- set your own style file path
+      (setq org-html-head-include-default-style nil)
+      (setq org-html-head (concat
+                           "<style type=\"text/css\">\n"
+                           "<!--/*--><![CDATA[/*><!--*/\n"
+                           (with-temp-buffer
+                             (insert-file-contents final)
+                             (buffer-string))
+                           "/*]]>*/-->\n"
+                           "</style>\n")))))
+
+(add-hook 'org-export-before-processing-hook 'my-org-inline-css-hook)
+
+;; Make the html export have inline background style
+(defun org-html-src-block (src-block _contents info)
+  "Transcode a SRC-BLOCK element from Org to HTML.
+CONTENTS holds the contents of the item.  INFO is a plist holding
+contextual information."
+  (if (org-export-read-attribute :attr_html src-block :textarea)
+      (org-html--textarea-block src-block)
+    (let* ((lang (org-element-property :language src-block))
+	       (code (org-html-format-code src-block info))
+	       (label (let ((lbl (org-html--reference src-block info t)))
+		            (if lbl (format " id=\"%s\"" lbl) "")))
+	       (klipsify  (and  (plist-get info :html-klipsify-src)
+                            (member lang '("javascript" "js"
+					                       "ruby" "scheme" "clojure" "php" "html")))))
+      (if (not lang) (format "<pre class=\"example\"%s>\n%s</pre>" label code)
+	    (format "<div class=\"org-src-container\" style=\"margin: 25px;padding: 15px; \
+border-radius: 5px;background-color: #1E1E1E; color: #D4D4D4; overflow: auto;\">\n%s%s\n</div>"
+                ;; Build caption.
+		        (let ((caption (org-export-get-caption src-block)))
+                  (if (not caption) ""
+		            (let ((listing-number
+			               (format
+			                "<span class=\"listing-number\">%s </span>"
+			                (format
+			                 (org-html--translate "Listing %d:" info)
+			                 (org-export-get-ordinal
+			                  src-block info nil #'org-html--has-caption-p)))))
+		              (format "<label class=\"org-src-name\">%s%s</label>"
+			                  listing-number
+			                  (org-trim (org-export-data caption info))))))
+		        ;; Contents.
+		        (if klipsify
+		            (format "<pre><code class=\"src src-%s\"%s%s>%s</code></pre>"
+			                lang
+			                label
+			                (if (string= lang "html")
+				                " data-editor-type=\"html\""
+			                  "")
+			                code)
+		          (format "<pre class=\"src src-%s\"%s>%s</pre>"
+                          lang label code)))))))
+#+END_SRC
+
+** Pandoc settings
+
+#+BEGIN_SRC emacs-lisp
+(setq org-pandoc-options-for-ms-pdf '((template . "D:/orgmode/templates/eisvogel.latex")
+                                      (variable . "titlepage:true --variable=CJKmainfont")
+                                      (variable . "CJKmainfont")
+                                      (pdf-engine . "xelatex"))
+      org-pandoc-options-for-latex-pdf '((template . "D:/orgmode/templates/eisvogel.latex")
+                                         (variable . "titlepage:true")
+                                         (variable . "CJKmainfont")
+                                         (pdf-engine . "xelatex")))
+#+END_SRC
+
+** Pygments custom style
+
+Create a file called ~vscustom.py~ in the folder
+~C:\WPy64-3870\python-3.8.7.amd64\Lib\site-packages\pygments\styles~:
+
+#+BEGIN_SRC python
+# -*- coding: utf-8 -*-
+"""
+    pygments.styles.vscustom
+    ~~~~~~~~~~~~~~~~~~
+
+    Simple style with MS Visual Studio colors.
+
+    :copyright: Copyright 2006-2020 by the Pygments team, see AUTHORS.
+    :license: BSD, see LICENSE for details.
+"""
+
+from pygments.style import Style
+from pygments.token import Text, Keyword, Name, Comment, String, Error, \
+    Operator, Number, Generic
+
+
+class VscustomStyle(Style):
+
+    background_color = "#ffffff"
+    default_style = ""
+
+    styles = {
+        Text:                      "#292D2E",
+        
+        String:                    "#E55314",
+        String.Doc:                "#E55314",
+        Comment:                   "#43A63A",
+        Comment.Preproc:           "#F958D5",
+        
+        Error:                     "#F16969",
+        
+        Keyword:                   "bold #298DF2",
+
+        Operator:                  "#DD14C8",
+        
+        Name.Class:                "bold #79B4DA",
+        Name.Builtin:              "bold #4EC9B0",
+        Name.Const:                "#4CCBB1",
+        Name.Function:             "#FFA200",
+        Name.Function.Magic:       "bold #F958D5",
+        Name.Variable:             "#9CDCFE",
+        
+        Number:                    "#498ED4",
+
+        Generic.Heading:           "bold",
+        Generic.Subheading:        "bold",
+        Generic.Emph:              "italic",
+        Generic.Strong:            "bold",
+        Generic.Prompt:            "bold",
+
+    }
+#+END_SRC
+
+* Programming Languages Settings
+** C
+
+#+BEGIN_SRC emacs-lisp
+;; Set the tab for c/c++ languages to be 4 spaces
+(setq-default c-basic-offset 4)
+#+END_SRC
+
+** Emacs-lisp
+
+#+BEGIN_SRC emacs-lisp
+(define-key emacs-lisp-mode-map (kbd "C-c C-f") 'eval-defun)
+(define-key emacs-lisp-mode-map (kbd "C-c C-r") 'eval-region)
+(define-key emacs-lisp-mode-map (kbd "C-c C-b") 'eval-buffer)
+(define-key emacs-lisp-mode-map (kbd "C-c C-c") 'my-eval-last-sexp-comment)
+#+END_SRC
+
+** Cobol
+
+#+BEGIN_SRC emacs-lisp
+(add-hook 'cobol-mode-hook
+          (lambda ()
+            (set-fill-column 73)
+            (setq fci-rule-width 1)
+            (setq fci-rule-color "#37322b")))
+(add-hook 'cobol-mode-hook 'fci-mode)
+#+END_SRC
+
+** Python
+
+#+BEGIN_SRC emacs-lisp
+(setq python-indent-guess-indent-offset nil)
+(setq python-indent-offset 4)
+#+END_SRC
+
+** SQL
+
+#+BEGIN_SRC emacs-lisp
+;; Use `sqlind-show-syntax-of-line' to know the syntactic information of the
+;; current line
+(with-eval-after-load 'sql-indent
+  (defvar my-sql-indentation-offsets-alist
+    `((select-clause sqlind-right-justify-clause)
+      (with-clause 0)
+      (with-clause 0)
+      (select-table-continuation sqlind-right-justify-clause)
+      (select-join-condition sqlind-right-justify-clause)
+      ,@sqlind-default-indentation-offsets-alist)))
+
+(add-hook 'sqlind-minor-mode-hook
+          (lambda ()
+            (setq sqlind-indentation-offsets-alist
+                  my-sql-indentation-offsets-alist)))
+#+END_SRC
+
+** VBA
+
+#+BEGIN_SRC emacs-lisp
+;; Set the default indentation level to 4 spaces
+(setq-default visual-basic-mode-indent 4)
+
+;; Add default major mode for bas files
+(add-to-list 'auto-mode-alist '("\\.bas\\'" . visual-basic-mode))
+#+END_SRC
+
+* Debugging
+
+To debug with ~dap-mode~, add a breakpoint, either by clicking on the fringe or
+by calling ~dap-breakpoint-toggle~.
+
+#+BEGIN_SRC emacs-lisp
+;; The windows to be shown when debugging
+(setq dap-auto-configure-features '(sessions locals controls tooltip))
+
+;; Make the server log window appear at the bottom
+;; (add-to-list 'display-buffer-alist '(" server log\\*\\'" display-buffer-at-bottom (window-height . 0.25)))
+(add-to-list 'display-buffer-alist '(" server log\\*\\'" display-buffer-no-window))
+
+;; Setting windows positions up
+(with-eval-after-load 'dap-ui
+  ;; (treemacs)
+  (setq dap-ui-buffer-configurations
+        `((,dap-ui--breakpoints-buffer . ((side . right) (slot . 3) (window-width . 0.4)))      
+          (,dap-ui--expressions-buffer . ((side . left) (slot . 1) (window-width . 0.4)))
+          (,dap-ui--locals-buffer . ((side . left) (slot . 2) (window-width . 0.4)))
+          (,dap-ui--repl-buffer . ((side . bottom) (slot . 2) (window-height . 0.25)))
+          (,dap-ui--sessions-buffer . ((side . left) (slot . 3) (window-width . 0.4))))))
+
+;; (with-eval-after-load 'dap-ui
+;;   (setq dap-ui-buffer-configurations
+;;         `((,dap-ui--locals-buffer . ((side . left) (slot . 1) (window-width . 0.35)))
+;;           (,dap-ui--expressions-buffer . ((side . left) (slot . 2) (window-width . 0.35)))
+;;           (,dap-ui--sessions-buffer . ((side . left) (slot . 3) (window-width . 0.35)))
+;;           (,dap-ui--breakpoints-buffer . ((side . right) (slot . 2) (window-width . ,treemacs-width)))
+;;           (,dap-ui--debug-window-buffer . ((side . bottom) (slot . 2) (window-width . 0.20)))
+;;           (,dap-ui--repl-buffer . ((side . bottom) (slot . 1) (window-width . 0.45))))))
+#+END_SRC
+
+** Python
+
+Install ~pip install debugpy~ to enable Python debugging. Also make sure that
+the Poetry virtual environment is in the same directory by running either:
+
+#+BEGIN_SRC shell
+# Locally
+poetry config --local virtualenvs.in-project true
+# Globally
+poetry config virtualenvs.in-project true
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(require 'dap-python)
+
+(defun my-dap-poetry--populate-start-file-args (conf)
+  "Populate CONF with the required arguments."
+  (let* ((python-executable (dap-python--pyenv-executable-find dap-python-executable))
+         (python-args (plist-get conf :args))
+         (program (or (plist-get conf :target-module)
+                      (plist-get conf :program)
+                      (buffer-file-name)))
+         (module (plist-get conf :module))
+         (debugger (plist-get conf :debugger)))
+    ;; These are `dap-python'-specific and always ignored.
+    (cl-remf conf :debugger)
+    (cl-remf conf :target-module)
+    (plist-put conf :cwd (lsp-workspace-root))
+
+    ;; ptvsd
+    (let ((host "localhost")
+          (debug-port (dap--find-available-port)))
+      ;; support :args ["foo" "bar"]; NOTE: :args can be nil; however, nil is
+      ;; a list, so it will be mapconcat'ed, yielding the empty string.
+      (when (sequencep python-args)
+        (setq python-args (mapconcat #'shell-quote-argument python-args " ")))
+      ;; ignored by ptsvd anyway
+      (cl-remf conf :module)
+      (cl-remf conf :args)
+      (plist-put conf :program-to-start
+                 (format "poetry run python -m ptvsd --wait --host %s --port %s%s"
+                         host
+                         debug-port
+                         (if module (concat " -m " (shell-quote-argument module)) "")))
+      (plist-put conf :debugServer debug-port)
+      (plist-put conf :port debug-port)
+      (plist-put conf :hostName host)
+      (plist-put conf :host host))
+    conf))
+
+(dap-register-debug-provider "poetry" 'my-dap-poetry--populate-start-file-args)
+
+;; Create a new debugging template to use with Poetry and Pytest
+(dap-register-debug-template
+ "Poetry Pytest Debugging"
+ (list :type "poetry"
+       :args ""
+       :program nil
+       :cwd ""
+       :module "pytest"
+       :request "launch"
+       :name "Python :: Poetry Pytest"))
+#+END_SRC
+
+* UI Settings
+** Font
+
+#+BEGIN_SRC emacs-lisp
+;; Set default font
+(set-face-attribute 'default nil
+                    :family "Inconsolata"
+                    :height 110
+                    :weight 'normal
+                    :width 'normal)
+
+(set-fontset-font "fontset-default" 'han (font-spec :family "SimSun" :size 14))
+
+;; Line height
+;; (setq-default default-text-properties '(line-spacing 1 line-height 1.05))
+(setq-default left-margin-width 2)
+(setq-default right-margin-width 2)
+(setq header-line-format " ")
+(setq line-spacing 0.1)
+;; (set-window-buffer nil (current-buffer))
+#+END_SRC
+
+** Menus
+
+#+BEGIN_SRC emacs-lisp
+(require 'dired)
+(require 'flycheck)
+(require 'helm-projectile)
+(require 'lsp)
+(require 'lsp-ui)
+(require 'transient)
+(require 'yasnippet)
+#+END_SRC
+
+*** Package Manager menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-package-manager ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Package Manager\n" 'face 'org-document-title))
+   ["Install"
+    ("i" "temp. install package" straight-use-package)]
+   ["Check Packages"
+    ("c" "check" straight-check-package)
+    ("C" "check all" straight-check-all)]
+   ["Rebuild"
+    ("r" "rebuild" straight-rebuild-package)
+    ("R" "rebuild all" straight-rebuild-all)]
+   ["Fetch"
+    ("f" "fetch" straight-fetch-package-and-deps)
+    ("F" "fetch all" straight-fetch-all)]]
+  [
+   ["Pull (Fetch + Merge)"
+    ("p" "pull" straight-pull-package-and-deps)
+    ("P" "pull all" straight-pull-all)]
+   ["Push"
+    ("s" "push" straight-push-package)
+    ("S" "push all" straight-push-all)]
+   ["Normalize"
+    ("n" "normalize" straight-normalize-package)
+    ("N" "normalize all" straight-normalize-all)]
+   ["Merge"
+    ("m" "merge" straight-merge-package-and-deps)
+    ("M" "merge all" straight-merge-all)]]
+  [["Lock"
+    ("l" "lock" main-menu-window/body)
+    ("L" "load" main-menu-window/body)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Comments menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-comments ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Comments\n" 'face 'org-document-title))
+   ["Actions"
+    ("l" "comment line" comment-line)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Buffers menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-buffers ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Buffers\n" 'face 'org-document-title))
+   ["Actions"
+    ("b" "buffer list" helm-buffers-list)
+    ("d" "kill buffer" my-volatile-kill-buffer)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Emacs menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-emacs ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Emacs\n" 'face 'org-document-title))
+   ["Emacs"
+    ("e" "elisp playground" my-open-emacs-lisp-playground)]
+   ["Macros"
+    ("mi" "insert macro" insert-kbd-macro)
+    ("ms" "save macro" kmacro-name-last-macro)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Debug menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-debug ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Debug\n" 'face 'org-document-title))
+   ["Actions"
+    ("d" "start debugger" dap-debug)
+    ("Q" "disconnect debugger" dap-disconnect)]
+   ["Breakpoints"
+    ("b" "toggle breakpoing" dap-breakpoint-toggle)
+    ("B" "delete all breakpoints" dap-breakpoint-delete-all)]
+   ["Debug Menu"
+    ("m" "debug-menu" dap-hydra)]]
+  [:description
+   (lambda () (propertize "\nEmacs\n" 'face 'org-document-title))
+   ["Emacs Debugging"
+    ("t" "toggle debug on error" toggle-debug-on-error)
+    ("g" "garbage collect stats" my-garbage-collect-stats)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Dired menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-dired()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Dired\n" 'face 'org-document-title))
+   ["Actions"
+    ("o" "open dired" dired)
+    ("t" "toggle read/write" dired-toggle-read-only)]
+   ["Search & Replace"
+    ("s" "regex replace in file" dired-do-query-replace-regexp)]]
+  [["Mark"
+    ("m" "mark file" dired-mark)
+    ("M" "mark files subdir" dired-mark-subdir-files)
+    ("u" "unmark file" dired-unmark)
+    ("U" "unmark all files" dired-unmark-all-files)]
+   ["File Operations"
+    ("c" "copy file" dired-do-copy)
+    ("C" "copy files regexp" dired-do-copy-regexp)
+    ("r" "rename file" dired-do-rename)
+    ("R" "rename files regexp" dired-do-rename-regexp)
+    ("d" "mark deletion" dired-flag-file-deletion)
+    ("D" "delete marked files" dired-do-flagged-delete)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** File menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-files ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Files\n" 'face 'org-document-title))
+   ["Actions"
+    ("f" "find files" helm-find-files)
+    ("s" "save buffer" save-buffer)
+    ("S" "save all buffers" save-some-buffers)
+    ("r" "open recent files" helm-recentf)]
+   ["Directory"
+    ("d" "dired menu" my-menu-dired)
+    ("o" "open in explorer" my-browse-file-directory)
+    ("O" "open in explorer" my-browse-file-directory-or-project)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** LSP menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-lsp ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "LSP\n" 'face 'org-document-title))
+   ["Actions"
+    ("." "find files" helm-find-files)]
+   ["Status"
+    ("e" "error list" flycheck-list-errors)
+    ("i" "imenu" lsp-ui-imenu)]
+   ["Show"
+    ("m" "toggle lsp-mode" lsp-mode)
+    ("S" "start lsp-server" lsp)
+    ("R" "restart lsp-server" lsp-restart-workspace)
+    ("Q" "shutdown lsp-server" lsp-shutdown-workspace)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Windows menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-windows ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Windows\n" 'face 'org-document-title))
+   ["Actions"
+    ("o" "center buffer" olivetti-mode)
+    ("d" "delete window" delete-window)]
+   ["Window"
+    ("m" "maximize window" delete-other-windows)
+    ("s" "split down" split-window-below)
+    ("v" "split right" split-window-right)]
+   ["Move Window"
+    ("l" "move to right window" windmove-right)
+    ("h" "move to left window" windmove-left)
+    ("k" "move to up window" windmove-up)
+    ("j" "move to down window" windmove-down)]]
+  ["Frame"
+   ("fm" "maximize frame" toggle-frame-maximized)
+   ("fF" "fullscreen frame" toggle-frame-fullscreen)
+   ("ff" "make a new frame" make-frame)
+   ("fd" "delete frame" delete-frame)]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Help and documentation menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-help-docs ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Help & Docs\n" 'face 'org-document-title))
+   ["Help"
+    ("h" "lsp describe thing at point" lsp-describe-thing-at-point)]
+   ["Find & Replace"
+    ("fd" "find definition" lsp-find-definition)
+    ("fr" "find reference" lsp-find-references)
+    ("fR" "rename symbol at point" lsp-rename)]
+   ["Peek"
+    ("pd" "peek definition" lsp-ui-peek-find-definitions)
+    ("pi" "peek implementation" lsp-ui-peek-find-implementation)
+    ("pr" "peek references" lsp-ui-peek-find-references)]]
+  [:description
+   (lambda () (propertize "\nEmacs\n" 'face 'org-document-title))
+   ["Describe"
+    ("di" "info manuals" info)
+    ("dc" "describe character" describe-char)
+    ("df" "describe function" describe-function)
+    ("dk" "describe key" describe-key)
+    ("dm" "describe mode" describe-mode)
+    ("dt" "describe text properties" describe-text-properties)
+    ("dv" "describe variable" describe-variable)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Regex menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-regex ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Regex\n" 'face 'org-document-title))
+   ["Actions"
+    ("b" "regex builder" re-builder)
+    ("f" "ripgrep search files" my-ripgrep-search-files)
+    ("s" "ripgrep search" my-ripgrep-search)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Snippets menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-snippets ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Snippets\n" 'face 'org-document-title))
+   ["Actions"
+    ("i" "insert snippet" helm-yas-complete)
+    ("n" "new snippet" yas-new-snippet)
+    ("r" "reload snippets" yas-reload-all)
+    ("t" "snippet table" yas-describe-tables)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Projectile menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-projectile ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Projectile\n" 'face 'org-document-title))
+   ["New Project"
+    ("." "create .projectile file" my-create-projectile-file)]
+   ["This Project"
+    ("d" "open project in dired" projectile-dired)
+    ("f" "find file in project" helm-projectile)]
+   ["Other Projects"
+    ("p" "all projects" helm-projectile-switch-project)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Text menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-text ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Text\n" 'face 'org-document-title))
+   ["Actions"
+    ("i" "indent text" evil-indent)
+    ("f" "fill paragraph" fill-paragraph)
+    ("r" "count words and lines" count-words-region)]
+   ["Scale"
+    ("+" "increase" text-scale-increase)
+    ("-" "decrease" text-scale-decrease)
+    ("0" "reset" text-scale-adjust)]
+   ["Case"
+    ("c" "capitalize" capitalize-region)
+    ("u" "upcase" upcase-region)
+    ("d" "downcase" downcase-region)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** PlatformIO menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-platformio-mode ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Platform-IO\n" 'face 'org-document-title))
+   ["Actions"
+    ("m" "platformio-mode" platformio-mode)]
+   ["Build"
+    ("b" "build" platformio-build)
+    ("c" "clean" platformio-clean)]
+   ["Upload"
+    ("u" "upload" platformio-upload)
+    ("U" "update" platformio-update)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Incremental Reading menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-incremental-reading ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Incremental Reading\n" 'face 'org-document-title))
+   ["Mode"
+    ("m" "anki-editor-mode" anki-editor-mode)]
+   ["Extract"
+    ("eb" "extract basic card without back" incremental-reading-extract-basic-no-back)
+    ("eB" "extract basic card" incremental-reading-extract-basic)
+    ("ec" "extract cloze card without back" incremental-reading-extract-cloze-no-back)
+    ("eC" "extract cloze card" incremental-reading-extract-cloze)
+    ("c" "cloze region" anki-editor-cloze-region)]
+   ["Parse"
+    ("p" "parse cards into Anki" anki-editor-push-notes)
+    ("P" "parse all cards into Anki" my-parse-all-cards)
+    ("r" "remove id of Anki cards" my-remove-anki-cards-id)
+    ("R" "remove id of all Anki cards" my-remove-all-anki-cards-id)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Org-mode menu
+
+#+BEGIN_SRC emacs-lisp
+(defun org-kanban//initialize-mirrored-kanban-at-point ()
+  "Create an org-kanban dynamic block at the point."
+  (save-excursion
+    (insert "#+BEGIN: kanban :range (\"TODO\" . \"DONE\")\n#+END:\n"))
+  (org-ctrl-c-ctrl-c))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-org-mode ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Org-Mode\n" 'face 'org-document-title))
+   ["Actions"
+    ("''" "edit code block" org-edit-special)
+    ("'d" "close code block" org-edit-src-exit)
+    ("'c" "abort code block" org-edit-src-abort)
+    ("r" "org-roam menu" my-menu-org-roam)
+    ("Y" "rich copy to html" my-org-rich-copy)]
+   ["Agenda"
+    ("a" "open agenda" org-agenda)
+    ("A" "open calendar" cfw:open-org-calendar)]
+   ["Todos"
+    ("tt" "add todo" org-todo)
+    ("ts" "start todo" my-log-todo-started-timestamp-clock)
+    ("tS" "add schedule" org-schedule)
+    ("tD" "add deadline" org-deadline)]
+   ["Clock"
+    ("ci" "start-clock" org-clock-in)
+    ("co" "stop clock" org-clock-out)]
+   ["Insert"
+    ("it" "insert a new todo" org-insert-todo-heading)
+    ("ic" "insert citation" org-ref-helm-insert-cite-link)]]
+  [["Subtrees"
+    ("sp" "promote subtree" org-promote-subtree)
+    ("sd" "demote subtree" org-demote-subtree)]
+   ["Export & Publish"
+    ("ed" "export dispatch" org-export-dispatch)
+    ("et" "tangle code blocks" org-babel-tangle)
+    ("ep" "export to pdf pandoc" publish-pandoc)
+    ("pp" "public all" publish-all-and-build-toc)
+    ("pP" "force publish all" force-publish-all-and-build-toc)
+    ("pc" "public current file" publish-file-and-build-toc)
+    ("pC" "force publish current file" force-publish-file-and-build-toc)]
+   ["Kanban board"
+    ("ki" "initialize a kanban board" org-kanban/initialize-here)
+    ("ks" "shift the state" org-kanban/shift)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Org-Roam Menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-org-roam ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Org-Roam\n" 'face 'org-document-title))
+   ["Find"
+    ("f" "find roam file" org-roam-node-find)]
+   ["Links"
+    ("i" "insert link" org-roam-node-insert)
+    ("I" "insert/create link to note" my-org-roam-node-insert-immediate)]
+   ["Backlinks"
+    ("r" "show backlinks" org-roam-buffer-toggle)]]
+  [["Dailies"
+    ("dy" "capture daily yesterday" org-roam-dailies-capture-yesterday)
+    ("dt" "capture daily today" org-roam-dailies-capture-today)
+    ("dT" "capture daily Tomorrow" org-roam-dailies-capture-tomorrow)
+    ("dd" "capture daily date" org-roam-dailies-capture-date)]
+   ["Server"
+    ("s" "start server" org-roam-ui-mode)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Major Modes
+
+Check the current major-mode and open its respective menu window
+
+#+BEGIN_SRC emacs-lisp
+(defun my-menu-major-mode ()
+  "My major-mode menu"
+  (interactive)
+  (if (progn
+        (when (derived-mode-p 'clojure-mode)
+          (my-menu-clojure))
+        ;; (when (derived-mode-p 'elisp-mode)
+        ;;   (my-menu-elisp))
+        (when (derived-mode-p 'org-mode)
+          (my-menu-org-mode))
+        (when (derived-mode-p 'platformio-mode)
+          (my-menu-platformio-mode)))
+      nil ; if the above succeeds, do nothing else, otherwise...
+    (message "No transient defined for this mode.")))
+#+END_SRC
+
+**** Clojure
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-clojure-mode ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Clojure\n" 'face 'org-document-title))
+   ["Actions"
+    ("C" "jack-in" cider-jack-in-clj)
+    ("Q" "disconnect" cider-quit)]
+   ["Actions"
+    ("b" "eval buffer" cider-eval-buffer)
+    ("c" "eval to comment" cider-pprint-eval-defun-to-comment)
+    ("f" "eval function" cider-eval-defun-at-point)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Toggles menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-toggles ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Toggles\n" 'face 'org-document-title))
+   ["Actions"
+    ("r" "show hex colors" rainbow-mode)
+    ("C" "caps-lock mode" caps-lock-mode)
+    ("l" "wrap lines" toggle-truncate-lines)
+    ("p" "preview latex blocks" org-latex-preview)
+    ("v" "visual line mode" visual-line-mode)]]
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+*** Main menu
+
+#+BEGIN_SRC emacs-lisp
+(transient-define-prefix my-menu-main ()
+  "Create a sentence with several objects and a verb"
+  [:description
+   (lambda () (propertize "Main Menu\n" 'face 'org-document-title))
+   ["General"
+    ("SPC" "M-x" helm-M-x)
+    ("<tab>" "switch buffer" my-switch-to-last-buffer) 
+    ("$" "config" my-open-settings-file) 
+    ("\\" "open terminal" my-open-terminal-here) 
+    ("P" "package manager" my-menu-package-manager)
+    ("Q" "save and quit" save-buffers-kill-terminal)]
+   
+   ["Emacs"
+    ("e" "emacs" my-menu-emacs)
+    ("i" "incremental reading" my-menu-incremental-reading)
+    ("o" "org-mode" my-menu-org-mode)
+    ("m" "major-mode" my-menu-major-mode)
+    ("T" "toggles" my-menu-toggles)]]
+  
+  [["Buffers & Files & Windows"
+    ("b" "buffers" my-menu-buffers)
+    ("f" "files" my-menu-files)
+    ("w" "windows" my-menu-windows)]
+   ["Editing"
+    ("c" "comments" my-menu-comments)
+    ("r" "regex" my-menu-regex)
+    ("s" "snippets" my-menu-snippets)
+    ("t" "text" my-menu-text)
+    ("u" "undo-tree" undo-tree-visualize)]
+   ["Programming"
+    ("d" "debug" my-menu-debug)
+    ("h" "help & docs" my-menu-help-docs)
+    ("l" "lsp" my-menu-lsp)]
+   ["Projects & Version Control"
+    ("g" "git" magit)
+    ("p" "projectile" my-menu-projectile)]]
+  
+  ["Close menu"
+   ("q" "close menu" transient-quit-all)])
+#+END_SRC
+
+** Functionality
+
+#+BEGIN_SRC emacs-lisp
+;; Switch buffer dedicated window
+
+;; Highlight current line
+(global-hl-line-mode)   
+
+;; Show trailing whitespace
+(setq show-trailing-whitespace t)
+
+;; Max line column (starts at 0)
+(setq-default fill-column 79)
+
+;; Disable tabs
+(setq-default indent-tabs-mode nil)
+
+;; Tab width 4 spaces
+(setq-default tab-width 4)
+
+;; Do not break lines
+(set-default 'truncate-lines t)
+
+;; Show paren mode
+(show-paren-mode 1)
+
+;; electric pair mode
+;; (add-hook 'prog-mode-hook 'electric-pair-mode)
+
+;; Smooth scrolling
+;; move minimum when cursor exits view, instead of recentering
+(setq scroll-conservatively 10000)
+;; mouse scroll moves 1 line at a time, instead of 5 lines
+(setq mouse-wheel-scroll-amount '(5))
+;; on a long mouse scroll keep scrolling by 1 line
+(setq mouse-wheel-progressive-speed nil)
+
+(setq scroll-margin 1)
+(setq scroll-step 1)
+(setq scroll-preserve-screen-position 1)
+
+;; Enable recent file list
+(recentf-mode 1)
+
+;; Reread files from disk if updated
+(global-auto-revert-mode)
+
+;; Change re-builder mode to text as it will make it easier to type regexes as
+;; it will not use as many slashes `\'.
+(require 're-builder)
+(setq reb-re-syntax 'string)
+
+;; Start projectile mode
+(projectile-mode +1)
+
+;; Use git to find files, as it is faster than native mode it is by default on
+;; all OS's except on windows.
+(setq projectile-indexing-method 'alien)
+
+(setq-default
+ delete-by-moving-to-trash t                      ; Delete files to trash
+ window-combination-resize t                      ; take new window space from all other windows (not just
+                                                  ; current)
+ x-stretch-cursor t)                              ; Stretch cursor to the glyph width
+
+(setq undo-limit 80000000                         ; Raise undo-limit to 80Mb
+      evil-want-fine-undo t)                      ; By default while in insert all changes are one big blob. Be
+                                        ; more granular
+#+END_SRC
+
+* Macros
+
+Execute the macros by using theirs names as if it was a function. Macros are
+saved by the ~my-save-macro~ function, that searches this config file by heading
+and then goes down a certain number of lines.
+
+*Note:* If you change this text, update the ~forward-lines~ number.
+
+#+BEGIN_SRC emacs-lisp
+;; Some text
+#+END_SRC
+
+* Keybindings
+
+Use ~<return>~ when refering the ~enter~ key while on gui mode and ~RET~ when
+using ~enter~ on terminal mode.
+
+#+BEGIN_SRC emacs-lisp
+;; Stop the tripple ESC thing
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
+;; Remove the binding of evil to enter key.
+;; This will allow for enter to follow links in org-mode
+(with-eval-after-load 'evil-maps
+  (define-key evil-motion-state-map (kbd "SPC") nil)
+  (define-key evil-motion-state-map (kbd "RET") nil)
+  (define-key evil-motion-state-map (kbd "TAB") nil))
+
+;; When `ENTER' check if is comment and make new line
+(evil-define-key 'insert 'global (kbd "RET") 'indent-new-comment-line)
+
+;; Use TAB to indent instead of jump forward
+(evil-define-key 'normal 'global (kbd "TAB") 'indent-for-tab-command)
+
+;; Bind Shift-l and Shift-h to lsp focus frame
+(evil-define-key 'normal 'global (kbd "L") 'lsp-ui-doc-focus-frame)
+(evil-define-key 'normal 'global (kbd "H") 'lsp-ui-doc-unfocus-frame)
+
+;; When `o' check if is comment and make new line
+(evil-define-key 'normal 'global (kbd "o") 'my-end-of-line-comment)
+
+;; Use Ctrl + j to create lines before current line 
+(evil-define-key 'normal 'global (kbd "C-j") 'my-insert-line-above)
+
+;; Move lines with alt + navigation keys
+(evil-define-key 'normal 'global (kbd "M-k") 'my-move-line-up)
+(evil-define-key 'normal 'global (kbd "M-j") 'my-move-line-down)
+
+;; Resize windows
+(evil-define-key 'normal 'global (kbd "M-<left>") 'shrink-window-horizontally)
+(evil-define-key 'normal 'global (kbd "M-<right>") 'enlarge-window-horizontally)
+(evil-define-key 'normal 'global (kbd "M-<down>") 'shrink-window)
+(evil-define-key 'normal 'global (kbd "M-<up>") 'enlarge-window)
+
+;; Pretty Transient menu
+(evil-define-key 'normal 'global (kbd "SPC") 'my-menu-main)
+
+;; Helm navigation
+(define-key helm-map (kbd "C-j") 'helm-next-line)
+(define-key helm-map (kbd "C-k") 'helm-previous-line)
+(define-key helm-find-files-map (kbd "C-h") 'helm-find-files-up-one-level)
+(define-key helm-find-files-map (kbd "C-l") 'helm-execute-persistent-action)
+#+END_SRC
+
+* Startup time
+
+#+BEGIN_SRC emacs-lisp
+(message "*** Emacs loaded in %s with %d garbage collections."
+     (format "%.2f seconds"
+             (float-time
+              (time-subtract after-init-time before-init-time))) gcs-done)
+#+END_SRC
+
+* Initial buffer
+
+#+BEGIN_SRC emacs-lisp
+(setq initial-buffer-choice "D:/orgmode/org_agenda.org")
+(find-file "D:/orgmode/org_agenda.org")
+
+;; Set scratch buffer mode
+(setq initial-major-mode 'emacs-lisp-mode)
+(setq initial-scratch-message ";; This is a temporary scratch buffer.
+;; Use this for quick stuff like copy pasting or quick emacs scripts
+;; For creating scripts use the elisp-playground instead with `my-open-lisp-playground'.")
+
+(defun my-init-hook ()
+  (split-window-right)
+  (let ((org-agenda-window-setup 'other-window))
+    (org-agenda nil "a")))
+
+(add-hook 'window-setup-hook #'my-init-hook)
+#+END_SRC
+

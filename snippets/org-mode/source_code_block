@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: Source-Code Block
+# key: source
+# --
+#+BEGIN_SRC ${1:programming-language} :session none :results output :tangle no :export code
+$0
+#+END_SRC

@@ -1,0 +1,22 @@
+# -*- mode: snippet -*-
+# name: documentation
+# key: documentation
+# --
+/// <summary>
+/// Do this <see cref="this.that"/>.
+/// </summary>
+/// 
+/// <remarks>
+/// <para>Remarks 1</para>
+/// </remarks>
+///
+/// <param name="param">A parameter.</param>
+/// <paramref name="paramref">A parameter reference.</paramref>
+/// 
+/// <returns>
+/// </returns>
+///
+/// <example>
+/// <code>
+/// </code>
+/// </example>

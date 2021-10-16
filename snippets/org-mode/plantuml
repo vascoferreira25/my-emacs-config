@@ -1,0 +1,24 @@
+# -*- mode: snippet -*-
+# name: plantuml diagram 
+# key: <plantuml
+# --
+#+BEGIN_SRC plantuml :file ./img/diagram.png :cmdline -charset UTF-8
+@startuml
+'output theme
+'!theme cerulean
+'!theme cyborg
+
+' emacs viewing
+!theme cyborg-outline
+
+' sketching
+'!theme sketchy
+'!theme sketchy-outline
+allow_mixing
+
+' diagram goes here
+$0
+
+@enduml
+#+END_SRC
+

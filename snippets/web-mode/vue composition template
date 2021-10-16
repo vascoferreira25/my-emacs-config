@@ -1,0 +1,45 @@
+# -*- mode: snippet -*-
+# name: vue composition template
+# key: vue-composition
+# --
+<template>
+  <div>
+    <h3>{{ name }}</h3>
+    <p>This is the component's text</p>
+    <input v-model.number="numberX" type="number">
+    <input v-model.number="numberY" type="number">
+    <p>This is the result <strong>{{ total }}</strong></p>
+  </div>
+</template>
+
+<script>
+ import { defineComponent } from 'vue';
+ import { ref, computed } from 'vue';
+ // import { api } from 'boot/axios';
+ // import { useQuasar } from 'quasar';
+ 
+ export default defineComponent({
+   name: "ExampleComponent",
+   // props: ['propName'],
+   setup(/* props */) {
+     // const fromProp = props.fieldName
+     const name = ref("Example Component")
+     const numberX = ref(2)
+     const numberY = ref(3)
+
+     const total = computed(() => {
+       return numberX.value * numberY.value
+     })
+
+     return {
+       name,
+       numberX,
+       numberY,
+       total
+     }
+   }
+ })
+</script>
+
+<style>
+</style>

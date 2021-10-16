@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: OnCollisionEnter
+# key: oncollisionenter
+# group: unity
+# --
+private void OnCollisionEnter(Collision collision)
+{
+    Debug.Log("Collided with: " + collision.gameObject.name);
+}

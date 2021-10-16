@@ -1,0 +1,98 @@
+# -*- mode: snippet -*-
+# name: module
+# key: module
+# --
+'******************************************************************************
+'Author: ${1:Author}
+'Description: ${2:Description of the Module}
+'Version: 0.1
+'Instructions: ${3:How to use this module}
+'Revisions:
+'           - Date: ${4:Year}/${5:Month}/${6:Day}
+'           - Author: ${7:Revision Author}
+'           - Description: ${8:Revision Description}
+
+Option Explicit
+'******************************************************************************
+
+'******************************************************************************
+'Description: ${9:Sub Description}
+'Arguments: ${10:Sub Arguments}
+'******************************************************************************
+Sub ExampleSub()
+
+    'Increase performance by disabling the screen update 
+    'and automatic calculations
+    Application.ScreenUpdating = False
+    Application.Calculation = xlManual
+    
+    'Time function runtime
+    Dim ExecutionRunTime As Long
+    ExecutionRunTime = Timer
+    
+    'Current Worksheet
+    Dim wbWorkbookCur As Workbook
+    Dim wsWorksheetCur As Worksheet
+    Set wbWorkbookCur = ThisWorkbook
+    Set wsWorksheetCur = ThisWorkbook.ActiveSheet
+
+    '**************************************************************************
+    'Const Variables Declaration
+
+    ${0:'TODO: Main Code}
+
+    'TODO: Remove this variable
+    Dim THIS_VARIABLE_IS_THICC As Integer
+    THIS_VARIABLE_IS_THICC = "WOW! o.o"
+    
+    '**************************************************************************
+    'Variables Declaration
+    'TODO: Remove this variable
+    Dim intThisVariable As Integer
+    
+    '**************************************************************************
+    'Main Code
+    On Error GoTo ErrHandler
+    
+    'TODO: Remove this variable
+    thatv = THIS_VARIABLE_IS_THICC + 1
+
+    GoTo ExitSub
+
+'******************************************************************************
+'Error Handling
+ExitSub:
+    '**************************************************************************
+    'Cleanup Code - reset variables or options before exiting
+
+    'Re-enable Screen update and automatic calculations
+    Application.ScreenUpdating = True
+    Application.Calculation = xlAutomatic
+    calculate
+
+    'Re-activate current worksheet
+    wsWorksheetCur.Activate
+
+    'Print ExecutionRunTime
+    Debug.Print "Execution time: " & (Timer - ExecutionRunTime) & " seconds."
+    MsgBox "Execution time: " & _
+           (Timer - ExecutionRunTime) & " seconds.", _
+           vbOkOnly, "Procedure Execution Time"
+    Exit Sub
+
+ErrHandler:
+    'Handle specific errors
+    Select Case Err.Number
+        Case 0
+            'no error
+    End Select
+    
+    'Show the ErrorHandling form with the error number and message
+    'frmErrorHandling.DisplayErrorForm Err.Number, Err.Description
+
+    Resume ExitSub
+    
+    'When debugging, resume at this point to show where the error occured.
+    Resume
+End Sub
+

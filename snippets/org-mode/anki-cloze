@@ -1,0 +1,14 @@
+# -*- mode: snippet -*-
+# name: anki-cloze
+# key: <anki-cloze
+# group: anki
+# --
+** Item
+:PROPERTIES:
+:ANKI_NOTE_TYPE: Cloze
+:END:
+*** Text
+this is a {{c1::cloze::hint}} card
+
+*** Back Extra
+More text

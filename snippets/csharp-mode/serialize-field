@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: serialize field
+# group: unity
+# key: serialize
+# --
+/// <summary>
+/// Description of the variable
+/// Range(-1.0f, 1.0f)
+/// </summary>
+[SerializeField] private ${1:float} ${2:variableName} = ${3:0.0f};$0

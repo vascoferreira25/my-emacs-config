@@ -1,0 +1,36 @@
+# -*- mode: snippet -*-
+# name: awake singleton
+# key: singleton
+# group: unity
+# --
+/// <summary>
+/// This value will be shared by all instances of $1. This value
+/// will be used to get a reference to this class independently of the
+/// scene.
+///
+/// By calling $1.Instance from any code, you would get a
+/// reference to this $1 instance. There is no need to get a link
+/// to the $1 object.
+/// </summary>
+public static ${1:ClassName} Instance;
+
+/// <summary>
+/// Instance the $1 when starting. If a $1 already exists
+/// return and avoid replacing the current instance of $1.
+/// </summary>
+private void Awake()
+{
+    if (Instance != null)
+    {
+        // Destroy the new object and avoid replacing the already existing
+        // instance.
+        Destroy(gameObject);
+        return;
+    }
+
+    // Assign the Instance itself to a variable so we can use it later
+    Instance = this;
+    
+    // Don't destroy this object even when loading another scene.
+    DontDestroyOnLoad(gameObject);
+}

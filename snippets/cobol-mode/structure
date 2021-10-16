@@ -1,0 +1,31 @@
+# -*- mode: snippet -*-
+# name: structure
+# key: <s
+# --
+       *>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       *> The objective of this program is...
+       *> 
+       *> 
+       *>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. {$1: Program-Name}.
+       AUTHOR. {$2: Author Name}.
+       OPTIONS.
+           DEFAULT ROUNDED MODE IS NEAREST-EVEN.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+
+       DATA DIVISION.
+
+       WORKING-STORAGE SECTION.
+                                        
+       PROCEDURE DIVISION.
+           PERFORM Hello-World
+           STOP RUN.
+
+       Hello-World.
+       *>  This function prints "Hello, World!" to the console.
+           DISPLAY "Hello, World!".
+
+       END PROGRAM $1.

@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: OnTriggerEnter
+# key: ontriggerenter
+# group: unity
+# --
+private void OnTriggerEnter(Collider other)
+{
+    Debug.Log("Collided with: " + other.name);
+}

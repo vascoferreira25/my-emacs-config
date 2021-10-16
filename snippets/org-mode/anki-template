@@ -1,0 +1,38 @@
+# -*- mode: snippet -*-
+# name: anki-template
+# key: <anki-template
+# group: anki
+# --
+* The Chinese Language
+  :PROPERTIES:
+  :ANKI_DECK: Chinese
+  :END:
+
+** Vocabulary
+*** Item                                                       :vocab:idioms:
+:PROPERTIES:
+:ANKI_NOTE_TYPE: Basic (and reversed card)
+:END:
+
+**** Front
+
+(it's) raining cats and dogs
+
+**** Back
+
+it's raining very hard
+
+** Grammar                                                          :grammar:
+*** Item
+:PROPERTIES:
+:ANKI_NOTE_TYPE: Basic
+:END:
+
+**** Front
+
+说出名词从句的形式
+
+**** Back
+
+1) that + 一个完整的句子, that无实际意义
+2) 由疑问句改装而成   

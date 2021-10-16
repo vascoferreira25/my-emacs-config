@@ -1,0 +1,40 @@
+# -*- mode: snippet -*-
+# name: numpy_documentation_extensive
+# key: <ndoc-ext
+# group: personal
+# --
+"""
+${1:Summary}
+
+Parameters
+----------
+param : type
+	description
+
+Returns
+-------
+param : type
+	description
+
+See Also
+--------
+stuff : description
+
+Notes
+-----
+This is an example of autodoc using numpydoc, the Numpy documentation format
+with the numpydoc extension [1]_
+
+References
+----------
+.. [1] `numpydoc <https://github.com/numpy/numpy/tree/master/doc/sphinxext>`_, \
+	Numpy Documentation.
+
+Examples
+--------
+>>> var = func(param)
+
+Todo
+----
+Do all of this
+"""$0

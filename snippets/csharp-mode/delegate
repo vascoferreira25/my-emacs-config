@@ -1,0 +1,31 @@
+# -*- mode: snippet -*-
+# name: delegate
+# key: delegate
+# group: unity
+# --
+/// <summary>
+/// Subscribe events when something changes
+/// </summary>
+public delegate void On${1:EventName}Changed(/* Variables */);
+
+/// When you want something to listen to this callback,
+/// use it like this:
+///
+/// <example>
+/// // In the Class definition
+/// EquipmentManager equipmentManager;
+///
+/// // In the Start method
+/// equipmentManager.on$1ChangedCallback += UpdateStuff;
+///
+/// // Define the UpdateStuff function
+/// </example>
+/// 
+/// <example>
+/// // In the function where you want to trigger the callback
+/// if(on$1Changed != null){
+///     on$1ChangedCallback.Invoke(/* Variables */);
+/// }
+/// </example>
+public On$1Changed on$1ChangedCallback;
+

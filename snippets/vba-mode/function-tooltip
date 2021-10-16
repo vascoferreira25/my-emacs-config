@@ -1,0 +1,27 @@
+# -*- mode: snippet -*-
+# name: function-tooltip
+# key: function
+# --
+'******************************************************************************
+'Description: Register a User Defined Function to Excel
+'             and assign a description to it
+'******************************************************************************
+Public Sub DefineFunction(strFunctionName As String, strFunctionDescription As String, _
+       strFunctionArguments() As String, intFunctionCategory As Integer)
+       Application.MacroOptions Macro:=strFunctionName, _
+                                Description:=strFunctionDescription, _
+                                Category:=intFunctionCategory, _
+                                ArgumentDescriptions:=strFunctionArguments
+End Sub
+
+'******************************************************************************
+'Description: Define all the functions description and arguments to Excel
+'******************************************************************************
+Private Sub Auto_Open()
+    '${1:FunctionName}
+    Dim arrWorkingCapitalArgs(1 To  ${2:Number of Arguments}) As String
+    arrWorkingCapitalArgs(1) =  ${3:First Argument Description}
+    DefineFunction ${4:Function Name}, _,
+                   ${5:Function Description}_
+                   arrWorkingCapitalArgs, 14
+End Sub

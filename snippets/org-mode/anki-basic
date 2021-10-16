@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: anki-basic
+# key: <anki-basic
+# group: anki
+# --
+** Item
+:PROPERTIES:
+:ANKI_NOTE_TYPE: Basic
+:END:
+*** Front
+
+(it's) raining cats and dogs
+

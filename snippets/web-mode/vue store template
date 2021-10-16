@@ -1,0 +1,55 @@
+# -*- mode: snippet -*-
+# name: vue store template
+# key: vue-store-template
+# --
+// Import data from an API
+// import axios from 'axios';
+
+// The data
+const state = {
+    // Something like this
+    // nextId: 2
+    // todos: [{id: 1, title: 'Hello One'}]
+};
+
+// Get data from state
+const getters = {
+    // getTodos: (state) => {return state.todos}
+    // getNextId: (state) => {return state.nextId}
+};
+
+// Call the mutation with a commit
+const actions = {
+    // async addTodo ({ commit }, { title, description }) {
+    //     let newTodo = { title: title, description: description }
+    //     commit('ADD_TODO', newTodo)
+    // },
+
+    // async removeTodo ({ commit }, todo) {
+    //     commit('REMOVE_TODO', todo)
+    // }
+};
+
+// Change the state
+const mutations = {
+    // ADD_TODO (state, todo) {
+    //     let t = todo
+    //     t.id = state.nextId
+    //     t.done = false
+    //     state.todos.push(todo)
+    //     state.nextId += 1
+    // },
+    // REMOVE_TODO (state, todo) {
+    //     let i = state.todos.indexOf(todo)
+    //     state.todos.splice(i, 1)
+    // },
+};
+
+// Export the functions into Vuex
+export default {
+    state,
+    getters,
+    actions,
+    mutations
+}
+

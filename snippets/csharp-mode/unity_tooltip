@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: unity_tooltip
+# key: tooltip
+# group: unity
+# --
+[Tooltip("The tooltip of the variable")]

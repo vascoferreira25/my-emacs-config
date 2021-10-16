@@ -1,0 +1,17 @@
+# -*- mode: snippet -*-
+# name: phd-thesis-bibtex
+# key: phd-thesis
+# --
+
+@PhdThesis{thesis:${1:id},
+  author = {${2:author}},
+  title = {${3:title}},
+  school = {${4:school}},
+  year = {${5:year}},
+  OPTkey = {key},
+  OPTtype = {type},
+  OPTaddress = {address},
+  OPTmonth = {month},
+  OPTnote = {note},
+  OPTannote = {annote},
+}

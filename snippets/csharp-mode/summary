@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: summary
+# key: summary
+# --
+/// <summary>
+/// ${1:Description}
+/// </summary>
+///
+/// <returns>
+/// </returns>

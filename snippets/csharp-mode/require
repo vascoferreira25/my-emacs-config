@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: require component
+# key: require
+# group: unity
+# --
+[RequireComponent(typeof(${1:Rigidbody}))]
